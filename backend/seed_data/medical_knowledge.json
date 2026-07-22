@@ -1,0 +1,107 @@
+[
+  {
+    "topic": "Caffeine during pregnancy",
+    "content": "ACOG recommends limiting caffeine intake to less than 200mg per day during pregnancy, roughly one 12oz cup of coffee. Moderate caffeine consumption has not been shown to cause miscarriage or preterm birth, but high intake has been linked to low birth weight in some studies.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Fish and mercury during pregnancy",
+    "content": "The FDA and EPA recommend eating 2-3 servings (8-12 oz) per week of low-mercury fish such as salmon, shrimp, and tilapia. Avoid high-mercury fish like shark, swordfish, king mackerel, and tilefish. Cooked salmon is a good source of omega-3 fatty acids important for fetal brain development.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Raw fish and sushi",
+    "content": "CDC advises against eating raw or undercooked fish during pregnancy due to risk of Listeria, Salmonella, and parasites. Cooked sushi rolls (California rolls, cooked shrimp, vegetable rolls) are safe alternatives.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Tropical fruits - pineapple",
+    "content": "Pineapple is safe to eat during pregnancy in normal food quantities. Claims that pineapple induces labor are not supported by scientific evidence; bromelain in the small amounts found in fresh pineapple has no proven effect on the cervix or uterus.",
+    "source": "Healthline"
+  },
+  {
+    "topic": "Tropical fruits - papaya",
+    "content": "Ripe papaya is generally considered safe in moderation. Unripe or semi-ripe papaya contains high levels of latex and papain, which have been associated with uterine contractions in animal studies, and is typically advised against.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Mango",
+    "content": "Mango is safe and nutritious during pregnancy, providing vitamin C, vitamin A, and fiber. No credible evidence links normal mango consumption to pregnancy complications.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Green tea",
+    "content": "Green tea in moderation (1-2 cups/day) is generally considered safe, but it contains caffeine which counts toward the daily 200mg limit. Green tea can also interfere with folate absorption if consumed in excess, so moderation is advised, especially in the first trimester.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Deli meat and processed meat",
+    "content": "Deli meats and hot dogs can be contaminated with Listeria monocytogenes. CDC recommends heating these until steaming hot (165°F/74°C internal) before eating.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Unpasteurized dairy",
+    "content": "Unpasteurized (raw) milk and soft cheeses made from it (queso fresco, brie, feta, unless labeled pasteurized) can carry Listeria, which crosses the placenta and can cause miscarriage or stillbirth.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Chocolate and sugary desserts",
+    "content": "Chocolate cake and sugary desserts are safe in moderation. They provide little nutritional value and are high in added sugar and saturated fat, so should be an occasional treat rather than a regular part of the diet, particularly given gestational diabetes risk.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Alcohol while breastfeeding",
+    "content": "CDC advises that not drinking alcohol is the safest option while breastfeeding. If a mother chooses to drink, limiting to one standard drink and waiting at least 2 hours before nursing, or pumping and dumping the affected milk, reduces the baby's exposure.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Caffeine while breastfeeding",
+    "content": "Moderate caffeine intake (up to about 300mg/day, roughly 2-3 cups of coffee) is generally considered compatible with breastfeeding. High intake can cause irritability or poor sleep in some infants.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Herbs affecting milk supply",
+    "content": "Peppermint and sage in large amounts (such as concentrated teas or supplements) are traditionally associated with reduced milk supply, though evidence is limited. Fenugreek and fenugreek tea are commonly used as galactagogues to support supply, also with limited high-quality evidence.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Fish and mercury while breastfeeding",
+    "content": "The same low-mercury fish guidance from pregnancy continues during breastfeeding, since mercury can pass into breast milk. Continue limiting high-mercury fish like shark, swordfish, and king mackerel.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Starting solids - readiness and timing",
+    "content": "The AAP and CDC recommend introducing solid foods around 6 months of age, alongside continued breast milk or formula, when a baby shows developmental readiness signs (sitting with support, good head control, interest in food).",
+    "source": "AAP"
+  },
+  {
+    "topic": "Introducing allergenic foods to babies",
+    "content": "Current AAP guidance recommends introducing common allergenic foods (peanut, egg, dairy, wheat, soy, tree nuts, fish, shellfish) early, around 6 months and not later than necessary, in age-appropriate textures, as early introduction may reduce risk of food allergy. Introduce one new allergen at a time and watch for reactions.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Honey and infant botulism",
+    "content": "Honey should never be given to babies under 12 months due to risk of infant botulism from Clostridium botulinum spores. This includes honey used as an ingredient in cooked foods.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Choking hazards for babies and toddlers",
+    "content": "Common choking hazards include whole grapes, whole nuts, popcorn, hard candy, chunks of nut butter, raw hard vegetables, and hot dog rounds. Foods should be cut into small pieces, cooked until soft, and appropriately textured for the child's age.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Cow's milk for infants",
+    "content": "Cow's milk is not recommended as a main drink before 12 months because it is low in iron and can be hard on a baby's kidneys and digestive system. Small amounts in cooked foods (like yogurt or cheese) are generally fine from around 6 months.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Salt and sugar in baby food",
+    "content": "Babies' kidneys cannot process high sodium levels, so no salt should be added to food before 12 months. The AAP recommends avoiding added sugars entirely before age 2.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Postpartum nutrition for recovery",
+    "content": "Postpartum recovery benefits from adequate protein, iron to replace blood loss from delivery, and continued prenatal vitamin use if breastfeeding. Hydration needs increase for breastfeeding mothers.",
+    "source": "ACOG"
+  }
+]

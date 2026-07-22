@@ -1,0 +1,24 @@
+name: pregnancy_ai_assistant
+description: Pregnancy, postpartum, and baby nutrition AI assistant.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.4.0
+  image_picker: ^1.1.0
+  record: ^5.1.0
+  just_audio: ^0.9.40
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

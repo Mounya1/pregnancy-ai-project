@@ -1,0 +1,27 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.routers import chat, voice, food_analysis
+
+app = FastAPI(
+    title="Pregnancy Nutrition AI Assistant API",
+    description="Text, voice, and image-based food safety guidance for pregnancy, "
+    "grounded in ACOG/CDC/FDA/NIH guidance via RAG.",
+    version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # tighten this to your app's domain before production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(chat.router)
+app.include_router(voice.router)
+app.include_router(food_analysis.router)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
