@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'ui/app_card.dart';
+import 'ui/reveal.dart';
 
 class QuickAction {
-  final String label;
-  final IconData icon;
-  final Color iconColor;
-  final VoidCallback onTap;
-
   const QuickAction({
     required this.label,
+    required this.description,
     required this.icon,
+    required this.tint,
     required this.onTap,
-    this.iconColor = AppColors.purple,
   });
+
+  final String label;
+  final String description;
+  final IconData icon;
+
+  /// Accent hue for this tile's icon badge, so the four actions read as
+  /// distinct destinations rather than one undifferentiated block.
+  final Color tint;
+  final VoidCallback onTap;
 }
 
-/// The "Quick Actions" row on the home screen: Meal Planner, Nutrition
-/// Tracker, Scan Label, Saved Foods - each a circular icon button with a
-/// label underneath, matching the mockup.
+/// Two-column grid of feature shortcuts on the home screen.
 class QuickActionGrid extends StatelessWidget {
   const QuickActionGrid({super.key, required this.actions});
 
@@ -25,44 +30,69 @@ class QuickActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: actions.map((a) => _QuickActionButton(action: a)).toList(),
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: actions.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: AppSpacing.md,
+        mainAxisSpacing: AppSpacing.md,
+        mainAxisExtent: 116,
+      ),
+      itemBuilder: (context, i) => Reveal.stagger(
+        index: i,
+        child: _QuickActionTile(action: actions[i]),
+      ),
     );
   }
 }
 
-class _QuickActionButton extends StatelessWidget {
-  const _QuickActionButton({required this.action});
+class _QuickActionTile extends StatelessWidget {
+  const _QuickActionTile({required this.action});
 
   final QuickAction action;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final p = context.palette;
+
+    return AppCard(
       onTap: action.onTap,
-      borderRadius: BorderRadius.circular(28),
-      child: SizedBox(
-        width: 76,
-        child: Column(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: const BoxDecoration(
-                color: AppColors.purpleLight,
-                shape: BoxShape.circle,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: action.tint.withValues(alpha: p.isDark ? 0.22 : 0.14),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(action.icon, size: 19, color: action.tint),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                action.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.texts.titleSmall,
               ),
-              child: Icon(action.icon, color: action.iconColor, size: 22),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              action.label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
-            ),
-          ],
-        ),
+              const SizedBox(height: 2),
+              Text(
+                action.description,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: p.textMuted),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

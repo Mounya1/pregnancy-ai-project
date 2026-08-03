@@ -15,6 +15,7 @@ Flow:
    also produce a baby-targeted verdict.
 """
 import json
+import re
 from openai import OpenAI
 
 from app.config import settings
@@ -31,9 +32,28 @@ NIH, and AAP guidance. Do not invent facts or sources not present in the context
 context does not cover the food for the given life stage, set verdict to
 "Unknown - Ask Your Doctor" and say so honestly.
 
-You will be told the TARGET of the verdict: "mother" (is this food safe for the mother to eat,
-given her pregnancy/breastfeeding status) or "baby" (is this food safe to feed directly to a
+You will be told the TARGET of the verdict: "mother" (is this food safe for the user to eat,
+given their stated life stage) or "baby" (is this food safe to feed directly to a
 baby of the given age). Answer only for the stated target.
+
+LIFE STAGE RULE - this decides whether the answer is correct at all:
+The user prompt always states a LIFE STAGE. Your verdict, explanation, risks, and serving
+advice must be for THAT stage and no other. If the stage says the user is not pregnant, do
+not warn about pregnancy risks, trimesters, listeria in pregnancy, or fetal development -
+those warnings are wrong for that person and make the app untrustworthy. The retrieved
+context is largely pregnancy-focused, so it will often tempt you into pregnancy framing;
+ignore the parts that do not apply to the stated stage, and say the context does not cover
+the stage rather than substituting pregnancy guidance for it.
+
+ALLERGY RULE: if the user lists an allergy that this food contains or may contain, the
+verdict is "Avoid", and the explanation must lead with the allergy rather than general
+guidance. Never call a food the user is allergic to safe.
+
+DIETARY PREFERENCE RULE: preferences are about fit, not safety, so they never change the
+verdict on their own - a vegan asking about salmon should still be told salmon is safe to
+eat. But if the food conflicts with a stated preference you MUST say so in the explanation
+in one short sentence, and put something that does fit into "better_alternatives". Silently
+recommending food a person does not eat is the fastest way to lose their trust.
 
 Respond ONLY with valid JSON matching this exact shape, no markdown, no preamble:
 {
@@ -54,17 +74,131 @@ Respond ONLY with valid JSON matching this exact shape, no markdown, no preamble
 BABY_FEEDING_IRRELEVANT_KEYWORDS = {"alcohol", "wine", "beer", "coffee", "caffeine"}
 
 
-def _life_stage_note(profile: UserProfile) -> str:
-    if profile.life_stage == LifeStage.PREGNANCY and profile.pregnancy_week:
-        return f"The user is {profile.pregnancy_week} weeks pregnant."
+def life_stage_note(profile: UserProfile) -> str:
+    """
+    Always states the life stage explicitly - never returns an empty string.
+
+    An empty note used to be sent for GENERAL, and for PREGNANCY when no week
+    was set. With nothing said about the stage, a prompt that introduces itself
+    as a maternal assistant makes the model assume pregnancy, so users on
+    "General" were told about trimesters and prenatal risks they had not asked
+    about. Saying what the user is NOT is what prevents that.
+    """
+    if profile.life_stage == LifeStage.PREGNANCY:
+        if profile.pregnancy_week:
+            return f"LIFE STAGE: The user is pregnant, {profile.pregnancy_week} weeks along."
+        return "LIFE STAGE: The user is pregnant (week not specified)."
+
     if profile.life_stage == LifeStage.BREASTFEEDING:
-        note = "The user is postpartum and currently breastfeeding."
+        note = "LIFE STAGE: The user is postpartum and currently breastfeeding."
         if profile.baby_age_months is not None:
             note += f" Baby is {profile.baby_age_months} months old."
         return note
+
     if profile.life_stage == LifeStage.POSTPARTUM_NOT_NURSING:
-        return "The user is postpartum and not currently breastfeeding."
-    return ""
+        return (
+            "LIFE STAGE: The user is postpartum and NOT breastfeeding. "
+            "They are no longer pregnant, so pregnancy restrictions no longer apply. "
+            "Focus on recovery and general adult nutrition."
+        )
+
+    return (
+        "LIFE STAGE: The user is NOT pregnant, NOT breastfeeding, and NOT postpartum. "
+        "Answer purely as general adult nutrition. Do NOT mention pregnancy, "
+        "trimesters, prenatal risks, breastfeeding, or babies unless the user's "
+        "question explicitly asks about them."
+    )
+
+
+def _words(text: str) -> set[str]:
+    """Lowercase word set, punctuation stripped."""
+    return {w for w in re.sub(r"[^a-z]+", " ", text.lower()).split() if w}
+
+
+def _variants(word: str) -> set[str]:
+    """Singular/plural forms, so 'peanuts' matches 'peanut butter'."""
+    forms = {word}
+    if word.endswith("es"):
+        forms.add(word[:-2])
+    if word.endswith("s"):
+        forms.add(word[:-1])
+    else:
+        forms.add(word + "s")
+    return forms
+
+
+def find_allergy_conflict(food_query: str, allergies: list[str]) -> str | None:
+    """
+    Returns the user's allergy that the queried food matches, if any.
+
+    Whole-word matching with plural handling, deliberately NOT substring
+    matching: "egg" appears inside "eggplant", and telling someone their
+    aubergine is an egg allergy risk would teach them to ignore the warnings.
+    """
+    query_words = _words(food_query)
+    if not query_words:
+        return None
+
+    # Punctuation is already collapsed to spaces, so "dairy-free" reads as
+    # "dairy free" here.
+    flat = " ".join(re.sub(r"[^a-z]+", " ", food_query.lower()).split())
+
+    for allergen in allergies:
+        for token in _words(allergen):
+            if len(token) < 3:
+                continue
+            if not (_variants(token) & query_words):
+                continue
+            if _is_negated(flat, token):
+                continue
+            return allergen
+    return None
+
+
+def _is_negated(flat_query: str, token: str) -> bool:
+    """
+    True when the food is explicitly free of the allergen.
+
+    Without this, "dairy-free yogurt" matches a dairy allergy and gets flagged
+    Avoid - the opposite of the truth, and exactly the kind of wrong warning
+    that trains someone to stop reading them.
+    """
+    for form in _variants(token):
+        negations = (
+            f"{form} free",
+            f"free {form}",
+            f"free from {form}",
+            f"no {form}",
+            f"non {form}",
+            f"without {form}",
+            f"{form} alternative",
+            f"{form} substitute",
+        )
+        if any(pattern in flat_query for pattern in negations):
+            return True
+    return False
+
+
+def constraints_note(profile: UserProfile) -> str:
+    """States the user's allergies and dietary preferences for the prompt."""
+    parts = []
+    if profile.allergies:
+        parts.append(
+            f"ALLERGIES (must never be treated as safe): {', '.join(profile.allergies)}."
+        )
+    if profile.dietary_preferences:
+        parts.append(
+            f"DIETARY PREFERENCES: {', '.join(profile.dietary_preferences)}. "
+            "If the food conflicts with these, say so plainly and suggest an "
+            "alternative that fits - but do not call it a safety risk, because "
+            "a preference is a choice, not a hazard."
+        )
+    if profile.health_conditions:
+        parts.append(
+            f"MEDICAL CONDITIONS: {', '.join(profile.health_conditions)}. "
+            "Adjust the serving advice and risks for these."
+        )
+    return "\n".join(parts)
 
 
 def _build_context(query: str, extra_query_terms: str = ""):
@@ -74,11 +208,21 @@ def _build_context(query: str, extra_query_terms: str = ""):
 
 
 def _call_llm(food_query: str, target: Target, context_text: str, note: str) -> FoodSafetyResponse:
+    # The life stage is stated before the context and again after it. With the
+    # stage mentioned only once, and only at the end, the retrieved chunks -
+    # which are overwhelmingly pregnancy guidance - dominated the answer, and
+    # non-pregnant users were told "while pregnant or breastfeeding...".
     user_prompt = (
-        f"CONTEXT:\n{context_text}\n\n"
+        f"{note}\n\n"
         f"TARGET: {target.value}\n"
-        f"QUESTION: {food_query}\n"
-        f"{note}"
+        f"QUESTION: {food_query}\n\n"
+        f"CONTEXT (reference material, much of it written for pregnancy - use "
+        f"only what applies to the life stage above, and ignore the rest):\n"
+        f"{context_text}\n\n"
+        f"{note}\n"
+        f"Write the explanation for this person only. Do not describe risks "
+        f"that belong to a different life stage, and do not hedge by naming "
+        f"several stages at once."
     )
     completion = client.chat.completions.create(
         model=settings.chat_model,
@@ -94,10 +238,57 @@ def _call_llm(food_query: str, target: Target, context_text: str, note: str) -> 
     return FoodSafetyResponse(**raw)
 
 
+def _retrieval_terms(profile: UserProfile) -> str:
+    """
+    Nudges the vector search toward the right corner of the corpus.
+
+    The knowledge base is pregnancy-heavy, so an unweighted query returns
+    pregnancy chunks for everyone. Adding stage words gives the non-pregnant
+    stages a chance of retrieving something that actually applies to them.
+    """
+    if profile.life_stage == LifeStage.BREASTFEEDING:
+        return "breastfeeding lactation nursing"
+    if profile.life_stage == LifeStage.POSTPARTUM_NOT_NURSING:
+        return "postpartum recovery adult nutrition"
+    if profile.life_stage == LifeStage.GENERAL:
+        return "general adult nutrition healthy diet"
+    return ""
+
+
+def _apply_allergy_override(
+    result: FoodSafetyResponse, food_query: str, allergies: list[str]
+) -> FoodSafetyResponse:
+    """
+    Forces Avoid when the food matches a declared allergy.
+
+    Deliberately not left to the model: an allergy is the one case where a
+    wrong "Safe" is dangerous for this specific user regardless of what any
+    guidance says, so it is decided in code and applied after the fact.
+    """
+    allergen = find_allergy_conflict(food_query, allergies)
+    if allergen is None:
+        return result
+
+    result.verdict = SafetyVerdict.AVOID
+    result.explanation = (
+        f"You have listed {allergen} as an allergy, so this is not safe for you "
+        f"whatever the general guidance says. {result.explanation}"
+    )
+    risk = f"Contains or may contain {allergen}, which you are allergic to."
+    if risk not in result.risks:
+        result.risks.insert(0, risk)
+    result.recommended_serving = None
+    result.is_high_risk_override = True
+    return result
+
+
 def analyze_for_mother(food_query: str, profile: UserProfile) -> FoodSafetyResponse:
-    note = _life_stage_note(profile)
-    extra_terms = "breastfeeding" if profile.life_stage == LifeStage.BREASTFEEDING else ""
-    context_text = _build_context(food_query, extra_terms)
+    note = life_stage_note(profile)
+    constraints = constraints_note(profile)
+    if constraints:
+        note = f"{note}\n{constraints}"
+
+    context_text = _build_context(food_query, _retrieval_terms(profile))
     result = _call_llm(food_query, Target.MOTHER, context_text, note)
 
     override = check_pregnancy_high_risk(food_query)
@@ -108,7 +299,8 @@ def analyze_for_mother(food_query: str, profile: UserProfile) -> FoodSafetyRespo
         result.sources = sources
         result.is_high_risk_override = True
 
-    return result
+    # Allergy runs last so it wins over both the model and the high-risk list.
+    return _apply_allergy_override(result, food_query, profile.allergies)
 
 
 def analyze_for_baby(food_query: str, profile: UserProfile) -> FoodSafetyResponse | None:
@@ -118,7 +310,18 @@ def analyze_for_baby(food_query: str, profile: UserProfile) -> FoodSafetyRespons
     if any(kw in food_query.lower() for kw in BABY_FEEDING_IRRELEVANT_KEYWORDS):
         return None
 
-    note = f"Baby is {profile.baby_age_months} months old and eating solids."
+    note = f"LIFE STAGE: Baby is {profile.baby_age_months} months old and eating solids."
+    if profile.allergies:
+        # A parent's allergies matter for the baby too: family history raises
+        # the baby's risk, and it is the parent who has to handle a reaction.
+        note += (
+            f"\nFAMILY ALLERGIES: {', '.join(profile.allergies)}. "
+            "Flag these for the baby and advise introducing them only with "
+            "medical guidance."
+        )
+    if profile.dietary_preferences:
+        note += f"\nHOUSEHOLD DIET: {', '.join(profile.dietary_preferences)}."
+
     context_text = _build_context(food_query, "baby feeding solids choking allergen")
     result = _call_llm(food_query, Target.BABY, context_text, note)
 

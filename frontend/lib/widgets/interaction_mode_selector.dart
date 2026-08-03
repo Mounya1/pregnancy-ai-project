@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'ui/app_card.dart';
 
-/// "How would you like to ask?" row: Type / Voice / Scan Food, matching
-/// the home screen mockup.
+/// "How would you like to ask?" - Type / Voice / Scan, the three entry points
+/// into the assistant.
 class InteractionModeSelector extends StatelessWidget {
   const InteractionModeSelector({
     super.key,
@@ -17,31 +18,35 @@ class InteractionModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Row(
       children: [
         Expanded(
           child: _ModeCard(
-            icon: Icons.chat_bubble_outline,
+            icon: Icons.chat_bubble_rounded,
             title: 'Type',
             subtitle: 'Ask with text',
+            tint: p.brand,
             onTap: onType,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: _ModeCard(
-            icon: Icons.mic_none,
+            icon: Icons.graphic_eq_rounded,
             title: 'Voice',
-            subtitle: 'Speak your question',
+            subtitle: 'Speak it',
+            tint: Brand.teal,
             onTap: onVoice,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.md),
         Expanded(
           child: _ModeCard(
-            icon: Icons.camera_alt_outlined,
-            title: 'Scan food',
+            icon: Icons.center_focus_strong_rounded,
+            title: 'Scan',
             subtitle: 'Take a photo',
+            tint: p.accent,
             onTap: onScan,
           ),
         ),
@@ -55,43 +60,59 @@ class _ModeCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.tint,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color tint;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final p = context.palette;
+
+    return AppCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(color: AppColors.purpleLight, shape: BoxShape.circle),
-              child: Icon(icon, color: AppColors.purple, size: 18),
+      padding: const EdgeInsets.symmetric(
+        vertical: AppSpacing.lg,
+        horizontal: AppSpacing.sm,
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [tint, tint.withValues(alpha: 0.65)],
+              ),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              boxShadow: [
+                BoxShadow(
+                  color: tint.withValues(alpha: p.isDark ? 0.25 : 0.32),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 9, color: AppColors.textMuted),
-            ),
-          ],
-        ),
+            child: Icon(icon, size: 20, color: Colors.white),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(title, style: context.texts.titleSmall),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10.5, color: p.textMuted),
+          ),
+        ],
       ),
     );
   }

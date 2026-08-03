@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
-import 'models/user_profile.dart';
+import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
+import 'services/local_storage_service.dart';
+import 'services/notification_service.dart';
+import 'services/profile_controller.dart';
+import 'services/reminder_controller.dart';
+import 'services/theme_controller.dart';
 import 'theme/app_theme.dart';
+import 'theme/brand_flavor.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Sets up timezones and the notification channel before any reminder is
+  // scheduled. No-ops on web, where alarms can't be scheduled at all.
+  await NotificationService.instance.init();
   runApp(const PregnancyAiApp());
 }
 
@@ -12,18 +22,35 @@ class PregnancyAiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Demo profile - replace with the real profile loaded from
-    // auth/local storage once that's wired up.
-    final demoProfile = UserProfile(
-      lifeStage: LifeStage.breastfeeding,
-      babyAgeMonths: 7,
-    );
+    final storage = LocalStorageService();
 
-    return MaterialApp(
-      title: 'Pregnancy & Baby Nutrition AI',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      home: HomeScreen(profile: demoProfile, userName: 'Priya'),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProfileController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => ThemeController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => ReminderController(storage)..load()),
+      ],
+      // The brand colour depends on the profile (violet while pregnant, then
+      // the baby's colour), so the theme has to rebuild when either the theme
+      // mode or the profile changes.
+      child: Consumer2<ThemeController, ProfileController>(
+        builder: (context, theme, profileController, _) {
+          final flavor = flavorForProfile(profileController.profile);
+          return MaterialApp(
+            title: 'Pregnancy & Baby Nutrition AI',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(flavor),
+            darkTheme: AppTheme.dark(flavor),
+            themeMode: theme.mode,
+            // Animates every palette token when the brand or brightness
+            // changes, so switching to the baby's colour sweeps through the
+            // app instead of snapping.
+            themeAnimationDuration: AppMotion.slow,
+            themeAnimationCurve: AppMotion.emphasized,
+            home: const HomeScreen(userName: 'Priya'),
+          );
+        },
+      ),
     );
   }
 }

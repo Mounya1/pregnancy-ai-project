@@ -1,5 +1,3 @@
-import uuid
-import os
 import json
 from fastapi import APIRouter, UploadFile, File, Form
 from openai import OpenAI
@@ -11,14 +9,11 @@ from app.rag_chain import analyze_food, generate_followups
 router = APIRouter(prefix="/voice", tags=["voice"])
 client = OpenAI(api_key=settings.openai_api_key)
 
-AUDIO_OUTPUT_DIR = "generated_audio"
-os.makedirs(AUDIO_OUTPUT_DIR, exist_ok=True)
-
 
 @router.post("", response_model=VoiceResponse)
 async def voice_query(
     audio: UploadFile = File(...),
-    profile_json: str = Form("{}"),  # Flutter sends UserProfile as a JSON string form field
+    profile_json: str = Form("{}"),
 ):
     profile = UserProfile(**json.loads(profile_json))
 
@@ -38,16 +33,7 @@ async def voice_query(
         suggested_followups=generate_followups(transcript, profile),
     )
 
-    # 3. Text to speech (mother's explanation; extend to speak baby_result too if UI wants both read aloud)
-    speech_file = f"{AUDIO_OUTPUT_DIR}/{uuid.uuid4()}.mp3"
-    tts_resp = client.audio.speech.create(
-        model=settings.tts_model,
-        voice="alloy",
-        input=mother_result.explanation,
-    )
-    tts_resp.stream_to_file(speech_file)
-
-    # In production, upload speech_file to S3/CDN and return the public URL instead.
-    audio_url = f"/static/{speech_file}"
-
-    return VoiceResponse(transcript=transcript, chat_response=chat_response, audio_url=audio_url)
+    # No audio generated here - the frontend calls GET /tts?text=... separately
+    # to speak the reply, reusing the same mechanism as the "Listen to
+    # explanation" buttons on verdict cards instead of duplicating TTS logic.
+    return VoiceResponse(transcript=transcript, chat_response=chat_response, audio_url="")

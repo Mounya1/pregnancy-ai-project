@@ -34,6 +34,12 @@ class UserProfile(BaseModel):
     baby_age_months: Optional[int] = Field(None, ge=0, le=36)
     allergies: List[str] = Field(default_factory=list)
     dietary_preferences: List[str] = Field(default_factory=list)
+    # Cuisines the user wants meals drawn from, e.g. ["Indian", "Chinese"].
+    # Empty means no preference.
+    cuisines: List[str] = Field(default_factory=list)
+    # Conditions the diet must account for, e.g. ["gestational diabetes"].
+    # Usually populated from an uploaded report via /medical-report.
+    health_conditions: List[str] = Field(default_factory=list)
 
 
 class FoodSafetyResponse(BaseModel):
@@ -80,3 +86,97 @@ class FoodAnalysisResponse(BaseModel):
     detected_ingredients: List[str] = Field(default_factory=list)
     structured: FoodSafetyResponse
     baby_structured: Optional[FoodSafetyResponse] = None
+
+
+class MealItem(BaseModel):
+    name: str
+    description: str
+    why_good: str  # short reason this fits the user's life stage/nutrients needed
+
+
+class DayPlan(BaseModel):
+    day_label: str  # e.g. "Day 1", "Monday"
+    breakfast: MealItem
+    lunch: MealItem
+    dinner: MealItem
+    snack: MealItem
+
+
+class MealPlanRequest(BaseModel):
+    profile: UserProfile = Field(default_factory=UserProfile)
+    days: int = Field(3, ge=1, le=7)
+    dietary_preferences: List[str] = Field(default_factory=list)
+    allergies: List[str] = Field(default_factory=list)
+    # Overrides profile.cuisines when the planner screen sets them per-request.
+    cuisines: List[str] = Field(default_factory=list)
+    health_conditions: List[str] = Field(default_factory=list)
+
+
+class MealPlanResponse(BaseModel):
+    summary: str  # 1-2 sentence overview of the plan's nutritional focus
+    days: List[DayPlan]
+    disclaimer: str = "This is not medical advice. Consult your doctor or a registered dietitian."
+
+
+class ExerciseItem(BaseModel):
+    name: str
+    duration: str          # e.g. "20 minutes"
+    intensity: str         # "gentle" | "moderate" | "rest"
+    how_to: str            # 1-2 plain sentences
+    why_good: str          # what it does for this life stage
+
+
+class FitnessDay(BaseModel):
+    day_label: str         # e.g. "Day 1"
+    focus: str             # e.g. "Lower body and posture"
+    items: List[ExerciseItem] = Field(default_factory=list)
+
+
+class FitnessPlanRequest(BaseModel):
+    profile: UserProfile = Field(default_factory=UserProfile)
+    days: int = Field(7, ge=1, le=7)
+    health_conditions: List[str] = Field(default_factory=list)
+    # Free text, e.g. "no equipment", "20 minutes a day", "bad knees".
+    constraints: List[str] = Field(default_factory=list)
+
+
+class FitnessPlanResponse(BaseModel):
+    summary: str
+    days: List[FitnessDay]
+    # Symptoms that mean stop and call a clinician - always populated.
+    warning_signs: List[str] = Field(default_factory=list)
+    disclaimer: str = (
+        "This is general guidance, not medical advice. Get clearance from your "
+        "doctor or midwife before starting or changing exercise."
+    )
+
+
+class FindingStatus(str, Enum):
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+    UNKNOWN = "unknown"
+
+
+class ReportFinding(BaseModel):
+    """One measured value pulled out of a lab report."""
+    label: str          # e.g. "Haemoglobin"
+    value: str          # e.g. "9.4 g/dL"
+    status: FindingStatus = FindingStatus.UNKNOWN
+    note: str = ""      # short plain-language reading of this value
+
+
+class MedicalReportResponse(BaseModel):
+    """
+    Structured extraction from an uploaded lab report or doctor's summary.
+    `conditions` is the field that feeds back into UserProfile so meal plans
+    and chat answers adapt to what the report says.
+    """
+    title: str
+    summary: str
+    conditions: List[str] = Field(default_factory=list)
+    findings: List[ReportFinding] = Field(default_factory=list)
+    key_nutrients: List[str] = Field(default_factory=list)
+    foods_to_emphasize: List[str] = Field(default_factory=list)
+    foods_to_limit: List[str] = Field(default_factory=list)
+    disclaimer: str = "This is not a diagnosis. Always review results with your doctor."
