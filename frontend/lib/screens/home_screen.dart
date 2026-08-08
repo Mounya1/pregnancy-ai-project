@@ -25,6 +25,7 @@ import 'nutrition_tracker_screen.dart';
 import 'plan_screen.dart';
 import 'reminders_screen.dart';
 import 'track_screen.dart';
+import 'emergency_screen.dart';
 import 'week_detail_screen.dart';
 
 /// Root shell holding the bottom nav. Home/Plan/Track/Baby/Me are
@@ -178,6 +179,7 @@ class _HomeTabState extends State<_HomeTab> {
             onSearchTap: () => _openChat(profile),
             onAvatarTap: () => widget.onOpenTab(4),
             onNotificationsTap: () => _push(const RemindersScreen()),
+            onEmergencyTap: () => _push(const EmergencyScreen()),
             reminderCount: context.watch<ReminderController>().activeCount,
             onWeekTap: () => _push(
               WeekDetailScreen(initialWeek: profile.pregnancyWeek ?? 1),
@@ -263,6 +265,7 @@ class _HeroHeader extends StatelessWidget {
     required this.onSearchTap,
     required this.onAvatarTap,
     required this.onNotificationsTap,
+    required this.onEmergencyTap,
     required this.reminderCount,
     required this.onWeekTap,
   });
@@ -272,6 +275,10 @@ class _HeroHeader extends StatelessWidget {
   final VoidCallback onSearchTap;
   final VoidCallback onAvatarTap;
   final VoidCallback onNotificationsTap;
+
+  /// Emergency numbers, reachable from the first screen. Anything buried
+  /// three taps down is not an emergency feature.
+  final VoidCallback onEmergencyTap;
 
   /// Drives the badge on the bell - active reminders are the only thing in
   /// this app that legitimately notifies you.
@@ -303,16 +310,18 @@ class _HeroHeader extends StatelessWidget {
               // Strong enough to actually see against the gradient, still
               // clearly behind the text.
               opacity: 0.34,
-              child: profile.lifeStage == LifeStage.pregnancy
+              child: !profileHasBaby(profile)
                   ? const MotherIllustration(
                       color: Colors.white,
                       accent: Color(0xFFEDE7FF),
                       size: 150,
                     )
-                  : const BabyIllustration(
+                  // Once the baby is here the header shows the pair, not the
+                  // baby alone - the app is for both of them.
+                  : const HoldingBabyIllustration(
                       color: Colors.white,
                       accent: Color(0xFFEDE7FF),
-                      size: 132,
+                      size: 148,
                     ),
             ),
           ),
@@ -363,6 +372,11 @@ class _HeroHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              _HeroIconButton(
+                icon: Icons.emergency_rounded,
+                onTap: onEmergencyTap,
+              ),
+              const SizedBox(width: AppSpacing.sm),
               _HeroIconButton(
                 icon: Icons.notifications_none_rounded,
                 onTap: onNotificationsTap,
@@ -780,12 +794,21 @@ class _InsightCard extends StatelessWidget {
 /// A full-colour illustrated panel: the figure is the point here, not a
 /// watermark, so it gets real size, real tones, and a light backdrop that lets
 /// those tones read properly.
+/// Whether there is actually a baby to draw.
+///
+/// Not simply "not pregnant": a general-nutrition user has no baby, and
+/// showing them a mother holding one is both wrong and a little cruel.
+bool profileHasBaby(UserProfile profile) =>
+    profile.babyBirthDate != null ||
+    profile.lifeStage == LifeStage.breastfeeding ||
+    profile.lifeStage == LifeStage.postpartum;
+
 class _StageArtCard extends StatelessWidget {
   const _StageArtCard({required this.profile});
 
   final UserProfile profile;
 
-  bool get _showBaby => profile.lifeStage != LifeStage.pregnancy;
+  bool get _showBaby => profileHasBaby(profile);
 
   String get _title {
     if (!_showBaby) {
@@ -855,15 +878,15 @@ class _StageArtCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.md),
                     _showBaby
-                        ? BabyIllustration(
+                        ? HoldingBabyIllustration(
                             color: p.accent,
                             tones: tones,
-                            size: 104,
+                            size: 124,
                           )
                         : MotherIllustration(
                             color: p.brand,
                             tones: tones,
-                            size: 112,
+                            size: 124,
                           ),
                   ],
                 ),

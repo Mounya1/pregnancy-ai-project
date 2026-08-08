@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/account.dart';
 import '../models/baby_record.dart';
+import '../models/emergency_contact.dart';
 import '../models/history_entry.dart';
 import '../models/medical_report.dart';
 import '../models/nutrition_log.dart';
@@ -9,11 +11,13 @@ import '../models/saved_food.dart';
 import '../models/user_profile.dart';
 
 /// Wraps SharedPreferences (which uses the browser's localStorage on
-/// Flutter Web) for everything the app persists locally: profile, saved
-/// foods, interaction history, and the nutrition log. No backend/account
-/// needed - all data lives on this device only, per the portfolio-demo
-/// scope (see GETTING_STARTED.md).
+/// Flutter Web) for everything the app persists locally: the account,
+/// profile, saved foods, interaction history, and the nutrition log. There is
+/// no server behind any of it - all data lives on this device only, per the
+/// portfolio-demo scope (see GETTING_STARTED.md).
 class LocalStorageService {
+  static const _accountKey = 'account';
+  static const _sessionKey = 'session_active';
   static const _profileKey = 'user_profile';
   static const _savedFoodsKey = 'saved_foods';
   static const _historyKey = 'history_entries';
@@ -21,11 +25,43 @@ class LocalStorageService {
   static const _mealPlanKey = 'last_meal_plan';
   static const _themeModeKey = 'theme_mode';
   static const _remindersKey = 'reminders';
+  static const _milestonesKey = 'milestone_settings';
+  static const _contactsKey = 'emergency_contacts';
+  static const _shoppingRegionKey = 'shopping_region';
+  static const _shoppingCheckedKey = 'shopping_checked';
   static const _reportsKey = 'medical_reports';
   static const _babyKey = 'baby_records';
   static const _fitnessPlanKey = 'last_fitness_plan';
 
   Future<SharedPreferences> get _prefs async => SharedPreferences.getInstance();
+
+  // ---- Account ----
+  //
+  // One account per device. The record holds a PBKDF2 hash, never the
+  // password. "Session" is just a flag saying the password was entered since
+  // the last sign-out, so a restart doesn't ask again.
+
+  Future<Account?> loadAccount() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_accountKey);
+    if (raw == null) return null;
+    return Account.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveAccount(Account account) async {
+    final prefs = await _prefs;
+    await prefs.setString(_accountKey, jsonEncode(account.toJson()));
+  }
+
+  Future<bool> loadSessionActive() async {
+    final prefs = await _prefs;
+    return prefs.getBool(_sessionKey) ?? false;
+  }
+
+  Future<void> saveSessionActive(bool active) async {
+    final prefs = await _prefs;
+    await prefs.setBool(_sessionKey, active);
+  }
 
   // ---- Appearance ----
 
@@ -164,6 +200,60 @@ class LocalStorageService {
       _remindersKey,
       reminders.map((r) => jsonEncode(r.toJson())).toList(),
     );
+  }
+
+  // ---- Weekly milestone updates ----
+
+  Future<Map<String, dynamic>?> loadMilestoneSettings() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_milestonesKey);
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<void> saveMilestoneSettings(Map<String, dynamic> json) async {
+    final prefs = await _prefs;
+    await prefs.setString(_milestonesKey, jsonEncode(json));
+  }
+
+  // ---- Emergency contacts ----
+
+  Future<List<EmergencyContact>> loadEmergencyContacts() async {
+    final prefs = await _prefs;
+    final raw = prefs.getStringList(_contactsKey) ?? [];
+    return raw.map((s) => EmergencyContact.fromJson(jsonDecode(s))).toList();
+  }
+
+  Future<void> saveEmergencyContacts(List<EmergencyContact> contacts) async {
+    final prefs = await _prefs;
+    await prefs.setStringList(
+      _contactsKey,
+      contacts.map((c) => jsonEncode(c.toJson())).toList(),
+    );
+  }
+
+  // ---- Shopping ----
+
+  /// Null means never chosen, which is different from 'XX' (International
+  /// chosen deliberately) - the UI says "detected" only for the former.
+  Future<String?> loadShoppingRegion() async {
+    final prefs = await _prefs;
+    return prefs.getString(_shoppingRegionKey);
+  }
+
+  Future<void> saveShoppingRegion(String code) async {
+    final prefs = await _prefs;
+    await prefs.setString(_shoppingRegionKey, code);
+  }
+
+  Future<List<String>> loadShoppingChecked() async {
+    final prefs = await _prefs;
+    return prefs.getStringList(_shoppingCheckedKey) ?? const [];
+  }
+
+  Future<void> saveShoppingChecked(List<String> ids) async {
+    final prefs = await _prefs;
+    await prefs.setStringList(_shoppingCheckedKey, ids);
   }
 
   // ---- Medical reports ----

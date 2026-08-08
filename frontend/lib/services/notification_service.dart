@@ -4,6 +4,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../models/milestone.dart';
 import '../models/reminder.dart';
 
 /// Schedules the repeating local notifications behind the Reminders screen.
@@ -19,10 +20,16 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _ready = false;
+  bool _unavailable = false;
 
   /// Web can show a notification while the tab is open but cannot schedule
   /// one for later, so the UI presents reminders as an in-app schedule there.
   bool get supportsScheduling => !kIsWeb;
+
+  /// True once the platform plugin has actually initialised. False in unit
+  /// tests and anywhere the plugin is missing - callers use this to tell
+  /// "the user said no" apart from "there was nobody to ask".
+  bool get isAvailable => _ready;
 
   static const _channel = AndroidNotificationDetails(
     'reminders',
@@ -32,8 +39,20 @@ class NotificationService {
     priority: Priority.high,
   );
 
+  /// A separate channel so a weekly "your baby is the size of a lime" update
+  /// can be silenced in Android settings without also silencing the alarm
+  /// that says to take an iron tablet.
+  static const _milestoneChannel = AndroidNotificationDetails(
+    'milestones',
+    'Weekly updates',
+    channelDescription: 'Week-by-week pregnancy and baby development updates',
+    importance: Importance.defaultImportance,
+    priority: Priority.defaultPriority,
+    styleInformation: BigTextStyleInformation(''),
+  );
+
   Future<void> init() async {
-    if (_ready || !supportsScheduling) return;
+    if (_ready || _unavailable || !supportsScheduling) return;
 
     tz_data.initializeTimeZones();
     try {
@@ -45,13 +64,20 @@ class NotificationService {
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
 
-    await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        iOS: DarwinInitializationSettings(),
-      ),
-    );
-    _ready = true;
+    try {
+      await _plugin.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          iOS: DarwinInitializationSettings(),
+        ),
+      );
+      _ready = true;
+    } catch (_) {
+      // No platform plugin behind us - a unit test, or a desktop build. Every
+      // scheduling call below turns into a no-op rather than taking down the
+      // controller that called it.
+      _unavailable = true;
+    }
   }
 
   /// Asks for the runtime notification permission (Android 13+) and the
@@ -59,6 +85,7 @@ class NotificationService {
   Future<bool> requestPermissions() async {
     if (!supportsScheduling) return false;
     await init();
+    if (!_ready) return false;
 
     final android =
         _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
@@ -76,20 +103,67 @@ class NotificationService {
     return false;
   }
 
-  /// Rewrites every scheduled notification to match [reminders]. Cheaper to
+  /// Rewrites every scheduled reminder to match [reminders]. Cheaper to
   /// reason about than diffing, and the list is only ever a handful of items.
+  ///
+  /// Cancels by id range rather than with cancelAll(), which would also drop
+  /// the milestone series scheduled alongside it.
   Future<void> syncAll(List<Reminder> reminders) async {
     if (!supportsScheduling) return;
     await init();
-    await _plugin.cancelAll();
+    if (!_ready) return;
+    await _cancelRange(0, Milestone.idBase - 1);
     for (final reminder in reminders.where((r) => r.enabled)) {
       await _schedule(reminder);
+    }
+  }
+
+  /// Replaces the milestone series. Each entry is a one-shot with its own
+  /// text, because the whole point is that week 21 does not say what week 20
+  /// said - a repeating alarm cannot do that.
+  Future<void> syncMilestones(List<Milestone> milestones) async {
+    if (!supportsScheduling) return;
+    await init();
+    if (!_ready) return;
+    await _cancelRange(Milestone.idBase, Milestone.idMax);
+
+    const details = NotificationDetails(
+      android: _milestoneChannel,
+      iOS: DarwinNotificationDetails(),
+    );
+
+    for (final milestone in milestones) {
+      final when = tz.TZDateTime.from(milestone.when, tz.local);
+      // Skip anything already past: the caller filters on wall-clock time, but
+      // a timezone shift between the two can move a same-day entry backwards.
+      if (!when.isAfter(tz.TZDateTime.now(tz.local))) continue;
+
+      await _plugin.zonedSchedule(
+        id: milestone.notificationId,
+        title: milestone.title,
+        body: milestone.body,
+        scheduledDate: when,
+        notificationDetails: details,
+        // These are informational, so they can wait for a battery-friendly
+        // window instead of forcing the device awake on the minute.
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+  Future<void> _cancelRange(int min, int max) async {
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final request in pending) {
+      if (request.id >= min && request.id <= max) {
+        await _plugin.cancel(id: request.id);
+      }
     }
   }
 
   Future<void> cancel(Reminder reminder) async {
     if (!supportsScheduling) return;
     await init();
+    if (!_ready) return;
     await _plugin.cancel(id: reminder.notificationBaseId);
     for (var weekday = DateTime.monday; weekday <= DateTime.sunday; weekday++) {
       await _plugin.cancel(id: reminder.notificationBaseId + weekday);

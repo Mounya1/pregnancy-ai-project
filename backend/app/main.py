@@ -1,7 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import chat, voice, food_analysis, tts, meal_plan, medical_report, fitness
+from app.routers import (
+    chat,
+    voice,
+    food_analysis,
+    tts,
+    meal_plan,
+    medical_report,
+    fitness,
+    nutrition,
+)
 
 app = FastAPI(
     title="Pregnancy Nutrition AI Assistant API",
@@ -24,6 +33,7 @@ app.include_router(tts.router)
 app.include_router(meal_plan.router)
 app.include_router(medical_report.router)
 app.include_router(fitness.router)
+app.include_router(nutrition.router)
 
 
 @app.get("/health")

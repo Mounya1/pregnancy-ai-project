@@ -6,6 +6,7 @@ from openai import OpenAI
 from app.config import settings
 from app.schemas import FoodAnalysisResponse, UserProfile
 from app.rag_chain import analyze_food
+from app.nutrition import estimate_nutrients
 
 router = APIRouter(prefix="/food-analysis", tags=["food-analysis"])
 client = OpenAI(api_key=settings.openai_api_key)
@@ -51,9 +52,15 @@ async def analyze_food_image(
     #    and the food is something a baby would eat directly (e.g. a photographed meal/snack).
     mother_result, baby_result = analyze_food(food_name, profile=profile)
 
+    # 3. Nutrients, so a scan can be logged rather than only read. Optional on
+    #    purpose: a nutrient failure must not lose the safety verdict, which is
+    #    what the user actually pointed the camera at this food for.
+    nutrients = estimate_nutrients(food_name)
+
     return FoodAnalysisResponse(
         detected_food=food_name,
         detected_ingredients=ingredients,
         structured=mother_result,
         baby_structured=baby_result,
+        nutrients=nutrients,
     )

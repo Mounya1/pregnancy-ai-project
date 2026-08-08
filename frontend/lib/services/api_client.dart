@@ -5,6 +5,7 @@ import '../models/fitness_plan.dart';
 import '../models/food_safety_response.dart';
 import '../models/meal_plan.dart';
 import '../models/medical_report.dart';
+import '../models/nutrition_log.dart';
 import '../models/user_profile.dart';
 
 /// Thin wrapper around the FastAPI backend from pregnancy-ai-backend/.
@@ -105,6 +106,21 @@ class ApiClient {
     });
     final res = await _dio.post('/food-analysis', data: form);
     return FoodAnalysisResponse.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  /// Per-serving nutrients for a food the user typed by hand.
+  ///
+  /// The built-in table covers fifteen foods; this covers everything else, so
+  /// "log a food" stops meaning "log one of our fifteen foods".
+  Future<NutrientEstimate> estimateNutrients({
+    required String foodName,
+    required UserProfile profile,
+  }) async {
+    final res = await _dio.post('/nutrition/estimate', data: {
+      'food_name': foodName,
+      'profile': profile.toApiJson(),
+    });
+    return NutrientEstimate.fromJson(res.data as Map<String, dynamic>);
   }
 
   /// Sends recorded audio, gets back the transcribed question's chat response.

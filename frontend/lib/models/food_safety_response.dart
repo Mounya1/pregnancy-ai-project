@@ -1,3 +1,5 @@
+import 'nutrition_log.dart';
+
 enum SafetyVerdict { safe, limit, avoid, unknown }
 
 SafetyVerdict verdictFromString(String value) {
@@ -109,11 +111,16 @@ class FoodAnalysisResponse {
   final FoodSafetyResponse structured;
   final FoodSafetyResponse? babyStructured;
 
+  /// Null when the estimate could not be produced. The safety verdict is what
+  /// the photo was taken for, so a nutrient failure does not fail the scan.
+  final NutrientEstimate? nutrients;
+
   FoodAnalysisResponse({
     required this.detectedFood,
     this.detectedIngredients = const [],
     required this.structured,
     this.babyStructured,
+    this.nutrients,
   });
 
   factory FoodAnalysisResponse.fromJson(Map<String, dynamic> json) {
@@ -123,6 +130,9 @@ class FoodAnalysisResponse {
       structured: FoodSafetyResponse.fromJson(json['structured']),
       babyStructured: json['baby_structured'] != null
           ? FoodSafetyResponse.fromJson(json['baby_structured'])
+          : null,
+      nutrients: json['nutrients'] != null
+          ? NutrientEstimate.fromJson(json['nutrients'] as Map<String, dynamic>)
           : null,
     );
   }

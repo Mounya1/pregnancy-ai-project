@@ -9,6 +9,8 @@
 // point clinical charts switch, because before then the legs are curled and a
 // full-body measurement is not meaningful.
 
+import 'user_profile.dart' show calendarDaysBetween;
+
 class PregnancyWeek {
   const PregnancyWeek({
     required this.week,
@@ -531,9 +533,6 @@ double pregnancyProgress(int week) => (week / 40).clamp(0.0, 1.0).toDouble();
 
 /// Days remaining to the due date, floored at zero.
 int daysToGo(DateTime dueDate, {DateTime? from}) {
-  final now = from ?? DateTime.now();
-  final days = DateTime(dueDate.year, dueDate.month, dueDate.day)
-      .difference(DateTime(now.year, now.month, now.day))
-      .inDays;
+  final days = calendarDaysBetween(from ?? DateTime.now(), dueDate);
   return days < 0 ? 0 : days;
 }

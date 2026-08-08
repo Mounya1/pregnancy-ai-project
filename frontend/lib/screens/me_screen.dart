@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../services/auth_controller.dart';
 import '../services/profile_controller.dart';
 import '../services/reminder_controller.dart';
 import '../theme/app_theme.dart';
@@ -7,6 +8,8 @@ import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/illustrations.dart';
 import '../widgets/ui/reveal.dart';
+import 'auth/account_screen.dart';
+import 'emergency_screen.dart';
 import 'medical_report_screen.dart';
 import 'profile_screen.dart';
 import 'reminders_screen.dart';
@@ -27,6 +30,7 @@ class MeScreen extends StatelessWidget {
     final p = context.palette;
     final profile = context.watch<ProfileController>().profile;
     final reminders = context.watch<ReminderController>();
+    final account = context.watch<AuthController>().account;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Me')),
@@ -40,6 +44,9 @@ class MeScreen extends StatelessWidget {
         children: [
           Reveal(
             child: _SummaryCard(
+              hasBaby: profile.babyBirthDate != null,
+              name: account?.name ?? 'Your profile',
+              initials: account?.initials,
               statusLabel: profile.statusLabel,
               allergies: profile.allergies.length,
               cuisines: profile.cuisines.length,
@@ -50,11 +57,27 @@ class MeScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxl),
           const SectionHeader(title: 'Your details'),
           _MenuTile(
+            icon: Icons.account_circle_rounded,
+            tint: Brand.teal,
+            title: 'Account',
+            subtitle: account == null
+                ? 'Sign in details'
+                : 'Password, sign out, delete data',
+            onTap: () => _open(context, const AccountScreen()),
+          ),
+          _MenuTile(
             icon: Icons.person_rounded,
             tint: p.brand,
             title: 'Profile',
             subtitle: 'Life stage, dates, allergies, cuisines',
             onTap: () => _open(context, const ProfileScreen()),
+          ),
+          _MenuTile(
+            icon: Icons.emergency_rounded,
+            tint: p.avoid,
+            title: 'Emergency contacts',
+            subtitle: 'Hospital, midwife, and who to call',
+            onTap: () => _open(context, const EmergencyScreen()),
           ),
           _MenuTile(
             icon: Icons.health_and_safety_rounded,
@@ -98,12 +121,24 @@ class MeScreen extends StatelessWidget {
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
+    required this.hasBaby,
+    required this.name,
+    required this.initials,
     required this.statusLabel,
     required this.allergies,
     required this.cuisines,
     required this.conditions,
     required this.onTap,
   });
+
+  /// Swaps the watermark figure once there is a baby to hold.
+  final bool hasBaby;
+
+  final String name;
+
+  /// Null before an account exists, which only happens in tests - the gate
+  /// means a signed-in app always has one.
+  final String? initials;
 
   final String statusLabel;
   final int allergies;
@@ -119,16 +154,22 @@ class _SummaryCard extends StatelessWidget {
       child: Stack(
         children: [
           const Positioned.fill(child: BlobDecoration(color: Colors.white, seed: 2)),
-          const Positioned(
+          Positioned(
             right: -8,
             bottom: -10,
             child: Opacity(
               opacity: 0.3,
-              child: MotherIllustration(
-                color: Colors.white,
-                accent: Color(0xFFEDE7FF),
-                size: 112,
-              ),
+              child: hasBaby
+                  ? const HoldingBabyIllustration(
+                      color: Colors.white,
+                      accent: Color(0xFFEDE7FF),
+                      size: 116,
+                    )
+                  : const MotherIllustration(
+                      color: Colors.white,
+                      accent: Color(0xFFEDE7FF),
+                      size: 112,
+                    ),
             ),
           ),
           Padding(
@@ -141,22 +182,45 @@ class _SummaryCard extends StatelessWidget {
                     Container(
                       width: 46,
                       height: 46,
+                      alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
                       ),
-                      child: const Icon(Icons.person_rounded, color: Colors.white, size: 23),
+                      child: initials == null
+                          ? const Icon(Icons.person_rounded, color: Colors.white, size: 23)
+                          : Text(
+                              initials!,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
                     const SizedBox(width: AppSpacing.lg),
                     Expanded(
-                      child: Text(
-                        statusLabel,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            statusLabel,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const Icon(Icons.chevron_right_rounded, color: Colors.white),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/suggestions.dart';
 import '../theme/app_theme.dart';
 import 'ui/app_card.dart';
+import 'ui/gradient_button.dart';
 
 /// Tag editor with live suggestions.
 ///
@@ -62,12 +63,34 @@ class _SuggestionFieldState extends State<SuggestionField> {
     setState(() => _query = '');
   }
 
+  /// Full list in a sheet, so several can be ticked in one go instead of
+  /// typing them one at a time.
+  Future<void> _openPicker() async {
+    _focusNode.unfocus();
+    final picked = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _PoolPickerSheet(
+        pool: widget.pool,
+        already: widget.tags,
+        title: widget.hint,
+        tint: widget.tint,
+      ),
+    );
+    if (picked == null) return;
+    for (final item in picked) {
+      widget.onAdd(item);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final matches = filterSuggestions(widget.pool, _query, exclude: widget.tags);
-    // Suggestions stay out of the way until the field is in use.
-    final showSuggestions = (_focusNode.hasFocus || _query.isNotEmpty) && matches.isNotEmpty;
+    // Always visible. Hiding these behind focus meant the field looked like a
+    // plain text box, and there was no way to discover that "Peanuts" is one
+    // tap away without first guessing and typing it.
+    final showSuggestions = matches.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,7 +136,11 @@ class _SuggestionFieldState extends State<SuggestionField> {
             ),
             const SizedBox(width: AppSpacing.sm),
             Pressable(
-              onTap: () => _add(_controller.text),
+              // With text typed this adds it; empty, it opens the full list.
+              // Previously an empty field made this button silently do
+              // nothing, which read as the app being broken.
+              onTap: () =>
+                  _query.trim().isEmpty ? _openPicker() : _add(_controller.text),
               child: Container(
                 width: 44,
                 height: 44,
@@ -121,7 +148,11 @@ class _SuggestionFieldState extends State<SuggestionField> {
                   color: p.brandSurface,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: Icon(Icons.add_rounded, color: p.brandSoft, size: 20),
+                child: Icon(
+                  _query.trim().isEmpty ? Icons.list_rounded : Icons.add_rounded,
+                  color: p.brandSoft,
+                  size: 20,
+                ),
               ),
             ),
           ],
@@ -149,7 +180,8 @@ class _SuggestionFieldState extends State<SuggestionField> {
                       Wrap(
                         spacing: AppSpacing.sm,
                         runSpacing: AppSpacing.sm,
-                        children: matches
+                        children: [
+                          ...matches
                             .map((s) => Pressable(
                                   onTap: () => _add(s),
                                   child: Container(
@@ -177,8 +209,37 @@ class _SuggestionFieldState extends State<SuggestionField> {
                                       ],
                                     ),
                                   ),
-                                ))
-                            .toList(),
+                                )),
+                          Pressable(
+                            onTap: _openPicker,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.sm - 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: p.brandSurface,
+                                borderRadius: BorderRadius.circular(AppRadius.pill),
+                                border: Border.all(color: p.brand.withValues(alpha: 0.25)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.list_rounded, size: 13, color: p.brandSoft),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'See all',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: p.brandSoft,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -225,6 +286,139 @@ class _Tag extends StatelessWidget {
             onTap: onRemove,
             borderRadius: BorderRadius.circular(AppRadius.pill),
             child: Icon(Icons.close_rounded, size: 14, color: tint),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Full-list picker with search and multi-select.
+///
+/// Exists because typing every allergen one at a time is the slowest possible
+/// way to answer "which of these apply to you", and the list is short enough
+/// to simply show.
+class _PoolPickerSheet extends StatefulWidget {
+  const _PoolPickerSheet({
+    required this.pool,
+    required this.already,
+    required this.title,
+    required this.tint,
+  });
+
+  final List<String> pool;
+  final List<String> already;
+  final String title;
+  final Color tint;
+
+  @override
+  State<_PoolPickerSheet> createState() => _PoolPickerSheetState();
+}
+
+class _PoolPickerSheetState extends State<_PoolPickerSheet> {
+  final _selected = <String>{};
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final taken = widget.already.map((e) => e.toLowerCase()).toSet();
+    final q = _query.trim().toLowerCase();
+    final options = widget.pool
+        .where((o) => !taken.contains(o.toLowerCase()))
+        .where((o) => q.isEmpty || o.toLowerCase().contains(q))
+        .toList();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: AppSpacing.xl,
+        right: AppSpacing.xl,
+        top: AppSpacing.sm,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(widget.title, style: context.texts.titleLarge),
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            decoration: const InputDecoration(
+              hintText: 'Search the list...',
+              prefixIcon: Icon(Icons.search_rounded, size: 19),
+            ),
+            onChanged: (v) => setState(() => _query = v),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: options.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                    child: Text(
+                      widget.already.isEmpty
+                          ? 'Nothing matches "$_query".'
+                          : 'Nothing left to add here.',
+                      style: context.texts.bodySmall?.copyWith(color: p.textMuted),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: options.map((option) {
+                        final on = _selected.contains(option);
+                        return Pressable(
+                          onTap: () => setState(() {
+                            on ? _selected.remove(option) : _selected.add(option);
+                          }),
+                          child: AnimatedContainer(
+                            duration: AppMotion.fast,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            decoration: BoxDecoration(
+                              color: on
+                                  ? widget.tint.withValues(alpha: p.isDark ? 0.22 : 0.13)
+                                  : p.surfaceAlt,
+                              borderRadius: BorderRadius.circular(AppRadius.pill),
+                              border: Border.all(
+                                color: on ? widget.tint : Colors.transparent,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  on ? Icons.check_circle_rounded : Icons.add_rounded,
+                                  size: 14,
+                                  color: on ? widget.tint : p.textMuted,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  option,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                                    color: on ? widget.tint : p.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          GradientButton(
+            label: _selected.isEmpty
+                ? 'Done'
+                : 'Add ${_selected.length} selected',
+            icon: Icons.check_rounded,
+            onPressed: () => Navigator.pop(context, _selected.toList()),
           ),
         ],
       ),

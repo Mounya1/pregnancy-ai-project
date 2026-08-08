@@ -582,3 +582,271 @@ class _BlobPainter extends CustomPainter {
   bool shouldRepaint(covariant _BlobPainter old) =>
       old.color != color || old.seed != seed || old.phase != phase;
 }
+
+/// A mother holding her baby, cradled in both arms.
+///
+/// The third figure in the set: [MotherIllustration] carries the pregnancy,
+/// [BabyIllustration] the baby alone, and this one the part in between that
+/// the app is actually about - the two of them together.
+///
+/// She breathes; the bundle rocks very gently against her, out of phase with
+/// the breath so the motion never looks mechanical.
+class HoldingBabyIllustration extends StatefulWidget {
+  const HoldingBabyIllustration({
+    super.key,
+    required this.color,
+    this.size = 120,
+    this.accent,
+    this.animate = true,
+    this.tones,
+  });
+
+  final Color color;
+  final double size;
+
+  /// Second tone for hair and the baby's blanket when [tones] is not given.
+  final Color? accent;
+  final bool animate;
+
+  /// Full-colour tones. When null the pair is a flat [color] silhouette,
+  /// which is what the gradient headers use behind their text.
+  final FigureTones? tones;
+
+  @override
+  State<HoldingBabyIllustration> createState() => _HoldingBabyIllustrationState();
+}
+
+class _HoldingBabyIllustrationState extends State<HoldingBabyIllustration>
+    with TickerProviderStateMixin, _BreathingState {
+  late final AnimationController _rockController = AnimationController(
+    vsync: this,
+    // Deliberately not a multiple of the 3800ms breath: the two drift in and
+    // out of phase, which is what stops it reading as a single mechanism.
+    duration: const Duration(milliseconds: 5100),
+  );
+
+  late final AnimationController _heartController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 6000),
+  );
+
+  @override
+  bool get wantsMotion => widget.animate;
+
+  @override
+  void syncMotion() {
+    super.syncMotion();
+    for (final controller in [_rockController, _heartController]) {
+      if (frozen) {
+        if (controller.isAnimating) controller.stop();
+        controller.value = 0;
+      } else if (!controller.isAnimating) {
+        controller.repeat();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _rockController.dispose();
+    _heartController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tones = widget.tones ??
+        FigureTones.mono(widget.color).copyWithHair(widget.accent ?? widget.color);
+
+    return SizedBox(
+      width: widget.size,
+      height: widget.size,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([breathController, _rockController, _heartController]),
+        builder: (context, _) => CustomPaint(
+          painter: _HoldingBabyPainter(
+            tones: tones,
+            breath: frozen ? 0.5 : breath,
+            rock: frozen ? 0.5 : _rockController.value,
+            heart: frozen ? null : _heartController.value,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HoldingBabyPainter extends CustomPainter {
+  _HoldingBabyPainter({
+    required this.tones,
+    required this.breath,
+    required this.rock,
+    required this.heart,
+  });
+
+  final FigureTones tones;
+  final double breath;
+
+  /// 0..1 through one rocking cycle.
+  final double rock;
+
+  /// 0..1 position of the rising heart, or null when motion is off.
+  final double? heart;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final lift = -h * 0.006 * breath;
+    // A degree and a half either way. Any more and it stops looking like
+    // someone soothing a baby and starts looking like a metronome.
+    final tilt = math.sin(rock * 2 * math.pi) * 0.026;
+
+    final dress = Paint()
+      ..color = tones.dress
+      ..isAntiAlias = true;
+    final skin = Paint()
+      ..color = tones.skin
+      ..isAntiAlias = true;
+
+    // Torso: shoulders squared toward us, hem flaring out. She stands
+    // straight here rather than in the pregnancy S-curve - the weight she is
+    // carrying is in front of her now, not inside her.
+    final torso = Path()
+      ..moveTo(w * 0.36, h * 0.30 + lift)
+      ..cubicTo(w * 0.30, h * 0.40, w * 0.27, h * 0.62, w * 0.26, h * 0.99)
+      ..lineTo(w * 0.74, h * 0.99)
+      ..cubicTo(w * 0.73, h * 0.62, w * 0.70, h * 0.40, w * 0.64, h * 0.30 + lift)
+      ..cubicTo(w * 0.58, h * 0.25 + lift, w * 0.42, h * 0.25 + lift, w * 0.36, h * 0.30 + lift)
+      ..close();
+    canvas.drawPath(torso, dress);
+
+    // Head, tipped very slightly toward the baby.
+    canvas.drawCircle(Offset(w * 0.44, h * 0.155 + lift), w * 0.098, skin);
+
+    // Hair: a cap over the crown and back, leaving the face open.
+    final hair = Path()
+      ..moveTo(w * 0.343, h * 0.168 + lift)
+      ..cubicTo(w * 0.335, h * 0.055 + lift, w * 0.545, h * 0.042 + lift, w * 0.540, h * 0.140 + lift)
+      ..cubicTo(w * 0.492, h * 0.088 + lift, w * 0.398, h * 0.094 + lift, w * 0.380, h * 0.198 + lift)
+      ..close();
+    canvas.drawPath(hair, Paint()..color = tones.hair..isAntiAlias = true);
+
+    // The cradle: one arm sweeps under the bundle, the far arm supports the
+    // head. Drawn before the baby so the baby sits inside the crook.
+    final arm = Paint()
+      ..color = tones.skin
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.062
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.335, h * 0.395 + lift)
+        ..cubicTo(w * 0.32, h * 0.56, w * 0.46, h * 0.66, w * 0.70, h * 0.575),
+      arm,
+    );
+
+    _paintBundle(canvas, size, tilt, lift);
+
+    // The near arm's hand, resting over the blanket. Drawn last so it reads
+    // as being on top of the baby rather than behind it.
+    canvas.drawCircle(Offset(w * 0.695, h * 0.565 + lift), w * 0.045, skin);
+
+    if (heart != null) _paintHeart(canvas, size, heart!);
+  }
+
+  /// Swaddled baby: blanket, head, and a sleeping curve of a closed eye.
+  /// Rotated as a group so the whole bundle rocks together.
+  void _paintBundle(Canvas canvas, Size size, double tilt, double lift) {
+    final w = size.width;
+    final h = size.height;
+
+    canvas.save();
+    // Pivot at the elbow, where a real bundle would swing from.
+    canvas.translate(w * 0.40, h * 0.60);
+    canvas.rotate(tilt);
+    canvas.translate(-w * 0.40, -h * 0.60);
+
+    // Blanket: a rounded wedge, wide at the feet, tapering to the shoulders.
+    final blanket = Path()
+      ..moveTo(w * 0.395, h * 0.545 + lift)
+      ..cubicTo(w * 0.40, h * 0.435, w * 0.55, h * 0.395, w * 0.665, h * 0.415 + lift)
+      ..cubicTo(w * 0.755, h * 0.432, w * 0.775, h * 0.545, w * 0.685, h * 0.565 + lift)
+      ..cubicTo(w * 0.575, h * 0.588, w * 0.445, h * 0.60, w * 0.395, h * 0.545 + lift)
+      ..close();
+    canvas.drawPath(
+      blanket,
+      Paint()
+        ..color = tones.detail
+        ..isAntiAlias = true,
+    );
+
+    // Head clear of the blanket at the top end, where an arm would support it.
+    final headCentre = Offset(w * 0.70, h * 0.415 + lift);
+    canvas.drawCircle(headCentre, w * 0.078, Paint()..color = tones.skin..isAntiAlias = true);
+
+    // A tuft of hair, and one closed eye - asleep, which is the only
+    // expression a stylised face this small can carry without looking odd.
+    canvas.drawPath(
+      Path()
+        ..moveTo(w * 0.665, h * 0.355 + lift)
+        ..cubicTo(w * 0.685, h * 0.325 + lift, w * 0.735, h * 0.335 + lift, w * 0.742, h * 0.372 + lift)
+        ..cubicTo(w * 0.715, h * 0.352 + lift, w * 0.688, h * 0.352 + lift, w * 0.665, h * 0.355 + lift)
+        ..close(),
+      Paint()..color = tones.hair..isAntiAlias = true,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(w * 0.723, h * 0.418 + lift), radius: w * 0.021),
+      math.pi * 0.15,
+      math.pi * 0.7,
+      false,
+      Paint()
+        ..color = tones.hair
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.013
+        ..strokeCap = StrokeCap.round
+        ..isAntiAlias = true,
+    );
+
+    canvas.restore();
+  }
+
+  /// A heart rising between the two of them.
+  void _paintHeart(Canvas canvas, Size size, double t) {
+    final w = size.width;
+    final h = size.height;
+
+    final opacity = t < 0.2
+        ? t / 0.2
+        : t > 0.65
+            ? (1 - t) / 0.35
+            : 1.0;
+    if (opacity <= 0) return;
+
+    final cx = w * (0.60 + 0.08 * t);
+    final cy = h * (0.36 - 0.28 * t);
+    final s = w * 0.07 * (0.75 + 0.25 * t);
+
+    final path = Path()
+      ..moveTo(cx, cy + s * 0.32)
+      ..cubicTo(cx - s * 1.1, cy - s * 0.45, cx - s * 0.35, cy - s * 1.05, cx, cy - s * 0.35)
+      ..cubicTo(cx + s * 0.35, cy - s * 1.05, cx + s * 1.1, cy - s * 0.45, cx, cy + s * 0.32)
+      ..close();
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = tones.detail.withValues(alpha: opacity.clamp(0.0, 1.0) * 0.8)
+        ..isAntiAlias = true,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HoldingBabyPainter old) =>
+      old.tones != tones ||
+      old.breath != breath ||
+      old.rock != rock ||
+      old.heart != heart;
+}

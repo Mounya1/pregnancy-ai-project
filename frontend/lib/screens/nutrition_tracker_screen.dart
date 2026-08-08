@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/nutrition_log.dart';
-import '../services/local_storage_service.dart';
+import '../services/api_client.dart';
+import '../services/api_error.dart';
+import '../services/nutrition_controller.dart';
 import '../services/profile_controller.dart';
 import '../theme/app_theme.dart';
 import '../theme/chart_colors.dart';
@@ -9,7 +11,9 @@ import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/gradient_button.dart';
 import '../widgets/ui/progress_ring.dart';
+import '../widgets/nutrient_breakdown.dart';
 import '../widgets/ui/reveal.dart';
+import 'food_analysis_screen.dart';
 
 class NutritionTrackerScreen extends StatefulWidget {
   const NutritionTrackerScreen({super.key, this.embedded = false});
@@ -22,48 +26,31 @@ class NutritionTrackerScreen extends StatefulWidget {
 }
 
 class _NutritionTrackerScreenState extends State<NutritionTrackerScreen> {
-  final _storage = LocalStorageService();
-  List<NutritionEntry> _allEntries = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final entries = await _storage.loadNutritionEntries();
-    if (mounted) {
-      setState(() {
-        _allEntries = entries;
-        _loading = false;
-      });
-    }
-  }
-
-  List<NutritionEntry> get _todayEntries =>
-      _allEntries.where((e) => e.isSameDay(DateTime.now())).toList()
-        ..sort((a, b) => b.loggedAt.compareTo(a.loggedAt));
-
-  NutrientProfile get _todayTotal =>
-      _todayEntries.fold(const NutrientProfile(), (sum, e) => sum + e.nutrients);
-
   Future<void> _addEntry() async {
+    final controller = context.read<NutritionController>();
     final result = await showModalBottomSheet<NutritionEntry>(
       context: context,
       isScrollControlled: true,
       builder: (_) => const _AddEntrySheet(),
     );
-    if (result != null) {
-      await _storage.logNutritionEntry(result);
-      await _load();
-    }
+    if (result != null) await controller.add(result);
+  }
+
+  /// The camera route into the log. Scanning already told you whether a food
+  /// is safe; not being able to log it from there made you type it again.
+  void _scanEntry() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FoodAnalysisScreen(
+          profile: context.read<ProfileController>().profile,
+        ),
+      ),
+    );
   }
 
   Future<void> _removeEntry(NutritionEntry entry) async {
-    await _storage.removeNutritionEntry(entry.id);
-    await _load();
+    await context.read<NutritionController>().remove(entry);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Removed ${entry.foodName}')),
@@ -74,9 +61,10 @@ class _NutritionTrackerScreenState extends State<NutritionTrackerScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     final profile = context.watch<ProfileController>().profile;
+    final log = context.watch<NutritionController>();
     final targets = targetsForLifeStage(profile.lifeStage);
-    final total = _todayTotal;
-    final entries = _todayEntries;
+    final entries = log.today;
+    final total = log.totalFor(entries);
 
     // One hue for every nutrient on purpose. These bars show magnitude against
     // a target, not identity - the row label already says which nutrient it is.
@@ -98,7 +86,7 @@ class _NutritionTrackerScreenState extends State<NutritionTrackerScreen> {
 
     return Scaffold(
       appBar: widget.embedded ? null : AppBar(title: const Text('Nutrition tracker')),
-      body: _loading
+      body: !log.isLoaded
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               padding: const EdgeInsets.fromLTRB(
@@ -174,10 +162,22 @@ class _NutritionTrackerScreenState extends State<NutritionTrackerScreen> {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        child: GradientButton(
-          label: 'Log a food',
-          icon: Icons.add_rounded,
-          onPressed: _addEntry,
+        child: Row(
+          children: [
+            Expanded(
+              child: GradientButton(
+                label: 'Log a food',
+                icon: Icons.add_rounded,
+                onPressed: _addEntry,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            SoftButton(
+              label: 'Scan',
+              icon: Icons.camera_alt_rounded,
+              onPressed: _scanEntry,
+            ),
+          ],
         ),
       ),
     );
@@ -323,6 +323,18 @@ class _LogTile extends StatelessWidget {
   final NutritionEntry entry;
   final VoidCallback onRemove;
 
+  IconData get _icon => switch (entry.source) {
+        NutritionSource.scanned => Icons.camera_alt_rounded,
+        NutritionSource.typed => Icons.edit_rounded,
+        NutritionSource.picked => Icons.restaurant_rounded,
+      };
+
+  String get _servingLabel {
+    final count = '${entry.servings} serving${entry.servings > 1 ? 's' : ''}';
+    final description = entry.servingDescription;
+    return description == null ? count : '$count  ·  $description';
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -343,7 +355,7 @@ class _LogTile extends StatelessWidget {
               color: p.surfaceAlt,
               borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
-            child: Icon(Icons.restaurant_rounded, size: 15, color: p.textSecondary),
+            child: Icon(_icon, size: 15, color: p.textSecondary),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -356,9 +368,37 @@ class _LogTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: context.texts.bodyMedium,
                 ),
-                Text(
-                  '${entry.servings} serving${entry.servings > 1 ? 's' : ''}',
-                  style: TextStyle(fontSize: 11, color: p.textMuted),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _servingLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: p.textMuted),
+                      ),
+                    ),
+                    // An estimate never sits in the log looking like a
+                    // measured value.
+                    if (entry.isEstimated) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'est.',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          color: p.limit,
+                        ),
+                      ),
+                    ],
+                    if (!entry.hasNutrients) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'no nutrient data',
+                        style: TextStyle(fontSize: 9.5, color: p.textMuted),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -374,6 +414,12 @@ class _LogTile extends StatelessWidget {
   }
 }
 
+
+/// Three ways in: pick one of the built-in foods, type any food at all and
+/// have its nutrients estimated, or scan a photo.
+///
+/// The typed path is the important one. A log that only accepts fifteen foods
+/// is a demo, not a food diary.
 class _AddEntrySheet extends StatefulWidget {
   const _AddEntrySheet();
 
@@ -382,9 +428,17 @@ class _AddEntrySheet extends StatefulWidget {
 }
 
 class _AddEntrySheetState extends State<_AddEntrySheet> {
+  final _api = ApiClient();
+
   String? _selectedFood;
   int _servings = 1;
   String _query = '';
+
+  /// Set once a typed food has been looked up. Holding it here is what lets
+  /// the numbers be shown before committing, rather than logging blind.
+  NutrientEstimate? _estimate;
+  bool _estimating = false;
+  String? _error;
 
   List<String> get _matches {
     final foods = kNutrientDatabase.keys.toList();
@@ -393,10 +447,68 @@ class _AddEntrySheetState extends State<_AddEntrySheet> {
     return foods.where((f) => f.toLowerCase().contains(q)).toList();
   }
 
+  /// True when the typed text is worth estimating: something was typed, and it
+  /// is not just the name of a food already in the table.
+  bool get _canEstimate {
+    final typed = _query.trim();
+    if (typed.length < 2) return false;
+    if (_estimate?.foodName.toLowerCase() == typed.toLowerCase()) return false;
+    return !kNutrientDatabase.keys.any((f) => f.toLowerCase() == typed.toLowerCase());
+  }
+
+  Future<void> _estimateTyped() async {
+    final typed = _query.trim();
+    setState(() {
+      _estimating = true;
+      _error = null;
+      _selectedFood = null;
+    });
+
+    try {
+      final estimate = await _api.estimateNutrients(
+        foodName: typed,
+        profile: context.read<ProfileController>().profile,
+      );
+      if (!mounted) return;
+      setState(() {
+        _estimate = estimate;
+        _estimating = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _estimating = false;
+        _error = describeApiError(e, baseUrl: _api.baseUrl);
+      });
+    }
+  }
+
+  void _submit() {
+    final estimate = _estimate;
+    final entry = estimate != null
+        ? NutritionEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            foodName: estimate.foodName,
+            servings: _servings,
+            perServing: estimate.perServing,
+            servingDescription: estimate.servingDescription,
+            source: NutritionSource.typed,
+          )
+        : NutritionEntry(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            foodName: _selectedFood!,
+            servings: _servings,
+          );
+    Navigator.pop(context, entry);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final matches = _matches;
+    final estimate = _estimate;
+    final targets = targetsForLifeStage(context.watch<ProfileController>().profile.lifeStage);
+    final ready = _selectedFood != null || estimate != null;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -405,115 +517,203 @@ class _AddEntrySheetState extends State<_AddEntrySheet> {
         top: AppSpacing.sm,
         bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Log a food', style: context.texts.titleLarge),
-          const SizedBox(height: AppSpacing.lg),
-          TextField(
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'Search foods...',
-              prefixIcon: Icon(Icons.search_rounded, size: 19),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Log a food', style: context.texts.titleLarge),
+            const SizedBox(height: AppSpacing.lg),
+            TextField(
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                hintText: 'Type any food, e.g. rajma chawal',
+                prefixIcon: Icon(Icons.search_rounded, size: 19),
+              ),
+              onChanged: (v) => setState(() {
+                _query = v;
+                // A new search invalidates the last estimate, otherwise the
+                // Add button would log a food nobody is looking at any more.
+                _estimate = null;
+                _error = null;
+              }),
+              onSubmitted: (_) => _canEstimate && !_estimating ? _estimateTyped() : null,
             ),
-            onChanged: (v) => setState(() => _query = v),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220),
-            child: matches.isEmpty
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-                    child: Text(
-                      'No foods match "$_query".',
-                      style: context.texts.bodySmall?.copyWith(color: p.textMuted),
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: matches.length,
-                    itemBuilder: (context, i) {
-                      final food = matches[i];
-                      final selected = food == _selectedFood;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: Pressable(
-                          onTap: () => setState(() => _selectedFood = food),
-                          child: AnimatedContainer(
-                            duration: AppMotion.fast,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                              vertical: AppSpacing.md,
-                            ),
-                            decoration: BoxDecoration(
-                              color: selected ? p.brandSurface : p.surfaceAlt,
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                              border: Border.all(
-                                color: selected ? p.brand : Colors.transparent,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    food,
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                                      color: p.textPrimary,
-                                    ),
-                                  ),
-                                ),
-                                if (selected)
-                                  Icon(Icons.check_circle_rounded, size: 16, color: p.brand),
-                              ],
-                            ),
+
+            // The way out of the built-in table. Offered as soon as what was
+            // typed is not one of the fifteen.
+            if (_canEstimate) ...[
+              const SizedBox(height: AppSpacing.md),
+              Pressable(
+                onTap: _estimating ? null : _estimateTyped,
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: p.brandSurface,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: p.brand.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      if (_estimating)
+                        SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: p.brand),
+                        )
+                      else
+                        Icon(Icons.auto_awesome_rounded, size: 17, color: p.brand),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Text(
+                          _estimating
+                              ? 'Working out the nutrients...'
+                              : 'Get nutrients for "${_query.trim()}"',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: p.brand,
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Text('Servings', style: context.texts.titleSmall),
-              const Spacer(),
-              IconButton(
-                onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
-                icon: const Icon(Icons.remove_circle_outline_rounded),
-              ),
-              SizedBox(
-                width: 28,
-                child: Text(
-                  '$_servings',
-                  textAlign: TextAlign.center,
-                  style: context.texts.titleMedium,
                 ),
               ),
-              IconButton(
-                onPressed: () => setState(() => _servings++),
-                icon: const Icon(Icons.add_circle_outline_rounded),
+            ],
+
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Text(
+                _error!,
+                style: TextStyle(fontSize: 11.5, height: 1.4, color: p.avoid),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          GradientButton(
-            label: 'Add to today',
-            icon: Icons.check_rounded,
-            onPressed: _selectedFood == null
-                ? null
-                : () => Navigator.pop(
-                      context,
-                      NutritionEntry(
-                        id: DateTime.now().microsecondsSinceEpoch.toString(),
-                        foodName: _selectedFood!,
-                        servings: _servings,
+
+            if (estimate != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              AppCard(
+                shadow: false,
+                color: p.surfaceAlt,
+                borderColor: Colors.transparent,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(estimate.foodName, style: context.texts.titleSmall),
+                    const SizedBox(height: AppSpacing.md),
+                    if (!estimate.recognised)
+                      Text(
+                        estimate.note.isEmpty
+                            ? 'That does not look like a food. You can still log it, but it will not count towards anything.'
+                            : estimate.note,
+                        style: TextStyle(fontSize: 11.5, height: 1.4, color: p.limit),
+                      )
+                    else
+                      NutrientBreakdown(
+                        nutrients: estimate.perServing,
+                        targets: targets,
+                        servingDescription: estimate.servingDescription,
+                        note: estimate.note,
+                        isEstimate: estimate.isEstimate,
+                        dense: true,
                       ),
-                    ),
-          ),
-        ],
+                  ],
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: AppSpacing.lg),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 200),
+                child: matches.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                        child: Text(
+                          'Not one of the built-in foods - use the button above to '
+                          'look up "${_query.trim()}".',
+                          style: context.texts.bodySmall?.copyWith(color: p.textMuted),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: matches.length,
+                        itemBuilder: (context, i) {
+                          final food = matches[i];
+                          final selected = food == _selectedFood;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            child: Pressable(
+                              onTap: () => setState(() => _selectedFood = food),
+                              child: AnimatedContainer(
+                                duration: AppMotion.fast,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.md,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected ? p.brandSurface : p.surfaceAlt,
+                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  border: Border.all(
+                                    color: selected ? p.brand : Colors.transparent,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        food,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight:
+                                              selected ? FontWeight.w600 : FontWeight.w400,
+                                          color: p.textPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                    if (selected)
+                                      Icon(Icons.check_circle_rounded,
+                                          size: 16, color: p.brand),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              children: [
+                Text('Servings', style: context.texts.titleSmall),
+                const Spacer(),
+                IconButton(
+                  onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
+                  icon: const Icon(Icons.remove_circle_outline_rounded),
+                ),
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    '$_servings',
+                    textAlign: TextAlign.center,
+                    style: context.texts.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => setState(() => _servings++),
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            GradientButton(
+              label: 'Add to today',
+              icon: Icons.check_rounded,
+              onPressed: ready ? _submit : null,
+            ),
+          ],
+        ),
       ),
     );
   }

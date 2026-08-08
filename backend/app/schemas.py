@@ -81,11 +81,40 @@ class VoiceResponse(BaseModel):
     audio_url: str
 
 
+class NutrientEstimate(BaseModel):
+    """Per-serving amounts for the five nutrients the tracker follows.
+
+    These are model estimates, not a food-database lookup. `is_estimate` is
+    always true today and exists so the UI has one honest flag to key its
+    wording off, rather than presenting a guess as a measurement.
+    """
+
+    food_name: str
+    serving_description: str = "1 serving"
+    iron_mg: float = 0
+    calcium_mg: float = 0
+    folate_mcg: float = 0
+    protein_g: float = 0
+    vitamin_d_mcg: float = 0
+    is_estimate: bool = True
+    # One short line on what was assumed - preparation, size, fortification.
+    note: str = ""
+    recognised: bool = True
+
+
+class NutrientLookupRequest(BaseModel):
+    food_name: str = Field(min_length=1, max_length=200)
+    profile: UserProfile = Field(default_factory=UserProfile)
+
+
 class FoodAnalysisResponse(BaseModel):
     detected_food: str
     detected_ingredients: List[str] = Field(default_factory=list)
     structured: FoodSafetyResponse
     baby_structured: Optional[FoodSafetyResponse] = None
+    # Null when the estimate could not be produced - the safety verdict is the
+    # point of this endpoint, so a nutrient failure must not fail the request.
+    nutrients: Optional[NutrientEstimate] = None
 
 
 class MealItem(BaseModel):

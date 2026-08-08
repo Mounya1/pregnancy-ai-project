@@ -22,6 +22,11 @@ dependencies:
   flutter_timezone: ^5.1.0
   permission_handler: ^12.0.3
   file_picker: ^11.0.2
+  # Password hashing for the device-only account (PBKDF2-HMAC-SHA256).
+  crypto: ^3.0.3
+  # Hands "baby store near me" to the device's maps app, which already knows
+  # where you are - so the app never needs a location permission of its own.
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

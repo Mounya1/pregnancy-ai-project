@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/local_storage_service.dart';
+import '../services/auth_controller.dart';
 import '../services/theme_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui/app_card.dart';
@@ -34,7 +34,8 @@ class SettingsScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.delete_outline_rounded,
             title: 'Clear all local data',
-            subtitle: 'Removes your profile, saved foods, history, and nutrition log from this device.',
+            subtitle:
+                'Removes your profile, saved foods, history, and nutrition log from this device. Your account stays.',
             iconColor: p.avoid,
             onTap: () => _confirmClear(context),
           ),
@@ -50,7 +51,8 @@ class SettingsScreen extends StatelessWidget {
           const _SettingsTile(
             icon: Icons.phonelink_lock_rounded,
             title: 'Local-only storage',
-            subtitle: 'All your data is saved on this device only. There is no account or cloud sync.',
+            subtitle:
+                'Your account and all your data are saved on this device only. Nothing is uploaded and there is no cloud sync.',
           ),
         ],
       ),
@@ -63,14 +65,15 @@ class SettingsScreen extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear all data?'),
         content: const Text(
-          'This removes your profile, saved foods, history, and nutrition log. This cannot be undone.',
+          'This removes your profile, saved foods, history, and nutrition log. '
+          'Your account stays, so you will not be signed out. This cannot be undone.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: context.palette.avoid),
             onPressed: () async {
-              await LocalStorageService().clearAllData();
+              await context.read<AuthController>().clearDataKeepingAccount();
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(

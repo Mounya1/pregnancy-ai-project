@@ -68,9 +68,16 @@ flutter pub get
 flutter run -d chrome
 ```
 
-**Checkpoint:** the app opens in Chrome. Tap "Type", ask a question, confirm
-a real verdict card comes back from your local backend. This is your proof
-the full stack works end to end before you touch deployment.
+**Checkpoint:** the app opens in Chrome on the sign-up screen. Create an
+account — name and a password, email optional. It is stored on this device
+only (no server), so use a throwaway password; there is no reset. Then tap
+"Type", ask a question, and confirm a real verdict card comes back from your
+local backend. This is your proof the full stack works end to end before you
+touch deployment.
+
+> Signed out and forgotten the password? There is nothing to recover it with.
+> "Forgot password?" on the sign-in screen erases the device copy so you can
+> start again.
 
 ---
 

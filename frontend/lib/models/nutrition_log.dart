@@ -34,6 +34,63 @@ class NutrientProfile {
         proteinG: proteinG + other.proteinG,
         vitaminDMcg: vitaminDMcg + other.vitaminDMcg,
       );
+
+  /// True when there is anything worth showing. A food that contributes none
+  /// of the five tracked nutrients should say so rather than render five
+  /// zeroes as if that were a result.
+  bool get isEmpty =>
+      ironMg == 0 && calciumMg == 0 && folateMcg == 0 && proteinG == 0 && vitaminDMcg == 0;
+
+  Map<String, dynamic> toJson() => {
+        'iron_mg': ironMg,
+        'calcium_mg': calciumMg,
+        'folate_mcg': folateMcg,
+        'protein_g': proteinG,
+        'vitamin_d_mcg': vitaminDMcg,
+      };
+
+  factory NutrientProfile.fromJson(Map<String, dynamic> json) => NutrientProfile(
+        ironMg: (json['iron_mg'] as num?)?.toDouble() ?? 0,
+        calciumMg: (json['calcium_mg'] as num?)?.toDouble() ?? 0,
+        folateMcg: (json['folate_mcg'] as num?)?.toDouble() ?? 0,
+        proteinG: (json['protein_g'] as num?)?.toDouble() ?? 0,
+        vitaminDMcg: (json['vitamin_d_mcg'] as num?)?.toDouble() ?? 0,
+      );
+}
+
+/// A per-serving estimate for a food that is not in [kNutrientDatabase] -
+/// typed by hand or read off a photo.
+///
+/// Mirrors app/schemas.py: NutrientEstimate. [isEstimate] is carried all the
+/// way to the UI so a guess is never displayed as a measurement.
+class NutrientEstimate {
+  const NutrientEstimate({
+    required this.foodName,
+    required this.perServing,
+    this.servingDescription = '1 serving',
+    this.note = '',
+    this.isEstimate = true,
+    this.recognised = true,
+  });
+
+  final String foodName;
+  final NutrientProfile perServing;
+  final String servingDescription;
+  final String note;
+  final bool isEstimate;
+
+  /// False when the text was not a food at all, so the UI can say that
+  /// instead of logging a row of zeroes.
+  final bool recognised;
+
+  factory NutrientEstimate.fromJson(Map<String, dynamic> json) => NutrientEstimate(
+        foodName: json['food_name'] as String? ?? '',
+        perServing: NutrientProfile.fromJson(json),
+        servingDescription: json['serving_description'] as String? ?? '1 serving',
+        note: json['note'] as String? ?? '',
+        isEstimate: json['is_estimate'] as bool? ?? true,
+        recognised: json['recognised'] as bool? ?? true,
+      );
 }
 
 /// A small reference set of common foods. Extend freely - this isn't meant
@@ -72,26 +129,66 @@ NutrientProfile targetsForLifeStage(LifeStage stage) {
   }
 }
 
+/// How the entry got into the log. Only used for wording and an icon, but
+/// the difference matters: a value looked up in the built-in table is exact,
+/// and one estimated from a name or a photo is not.
+enum NutritionSource { picked, typed, scanned }
+
+NutritionSource nutritionSourceFromString(String? value) =>
+    NutritionSource.values.firstWhere(
+      (s) => s.name == value,
+      orElse: () => NutritionSource.picked,
+    );
+
 class NutritionEntry {
   final String id;
   final String foodName;
   final int servings;
   final DateTime loggedAt;
 
+  /// Nutrients for ONE serving, carried on the entry itself.
+  ///
+  /// Null for foods that came from [kNutrientDatabase], which stays the
+  /// source of truth for those. Anything typed or scanned has no table entry
+  /// to look up later, so its numbers have to live here or they are lost.
+  final NutrientProfile? perServing;
+
+  /// What one serving means for this food, e.g. "1 cup cooked (180g)". Null
+  /// for built-in foods, whose names already carry the serving.
+  final String? servingDescription;
+
+  final NutritionSource source;
+
   NutritionEntry({
     required this.id,
     required this.foodName,
     required this.servings,
     DateTime? loggedAt,
+    this.perServing,
+    this.servingDescription,
+    this.source = NutritionSource.picked,
   }) : loggedAt = loggedAt ?? DateTime.now();
 
-  NutrientProfile get nutrients => (kNutrientDatabase[foodName] ?? const NutrientProfile()) * servings;
+  NutrientProfile get nutrients =>
+      (perServing ?? kNutrientDatabase[foodName] ?? const NutrientProfile()) * servings;
+
+  /// False when nothing is known about this food - it still belongs in the
+  /// log as a record of what was eaten, but it must not silently count as
+  /// zero towards the day's targets without saying so.
+  bool get hasNutrients =>
+      perServing != null || kNutrientDatabase.containsKey(foodName);
+
+  /// Estimated values are never presented as measured ones.
+  bool get isEstimated => source != NutritionSource.picked;
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'food_name': foodName,
         'servings': servings,
         'logged_at': loggedAt.toIso8601String(),
+        if (perServing != null) 'per_serving': perServing!.toJson(),
+        if (servingDescription != null) 'serving_description': servingDescription,
+        'source': source.name,
       };
 
   factory NutritionEntry.fromJson(Map<String, dynamic> json) => NutritionEntry(
@@ -99,6 +196,13 @@ class NutritionEntry {
         foodName: json['food_name'] as String,
         servings: json['servings'] as int,
         loggedAt: DateTime.tryParse(json['logged_at'] as String? ?? '') ?? DateTime.now(),
+        // Absent on entries written before foods could be typed or scanned;
+        // those all came from the built-in table, so the lookup still works.
+        perServing: json['per_serving'] == null
+            ? null
+            : NutrientProfile.fromJson(json['per_serving'] as Map<String, dynamic>),
+        servingDescription: json['serving_description'] as String?,
+        source: nutritionSourceFromString(json['source'] as String?),
       );
 
   bool isSameDay(DateTime day) =>

@@ -1,15 +1,19 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 import '../models/history_entry.dart';
 import '../models/food_safety_response.dart';
+import '../models/nutrition_log.dart';
 import '../models/saved_food.dart';
 import '../models/user_profile.dart';
 import '../services/api_client.dart';
 import '../services/api_error.dart';
 import '../services/local_storage_service.dart';
+import '../services/nutrition_controller.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/nutrient_breakdown.dart';
 import '../widgets/safety_verdict_card.dart';
 import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
@@ -31,6 +35,10 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
   final _storage = LocalStorageService();
   late final _tts = TtsService(baseUrl: _api.baseUrl);
   final _picker = ImagePicker();
+
+  /// Logging is one-shot per scan, so the button can say so instead of
+  /// silently stacking duplicate entries on each tap.
+  bool _logged = false;
 
   Uint8List? _imageBytes;
   FoodAnalysisResponse? _result;
@@ -56,6 +64,7 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
       _loading = true;
       _error = null;
       _result = null;
+      _logged = false;
       _saved = false;
     });
 
@@ -78,6 +87,28 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
 
   /// Camera and gallery are both worth offering: a label in a shop is a
   /// camera moment, a meal photo is usually already in the gallery.
+  /// Adds the scanned food to today's log with the nutrients the scan
+  /// returned - the whole point of estimating them on the server.
+  Future<void> _logScannedFood(int servings) async {
+    final estimate = _result?.nutrients;
+    if (estimate == null) return;
+
+    await context.read<NutritionController>().add(NutritionEntry(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          foodName: _result!.detectedFood,
+          servings: servings,
+          perServing: estimate.perServing,
+          servingDescription: estimate.servingDescription,
+          source: NutritionSource.scanned,
+        ));
+
+    if (!mounted) return;
+    setState(() => _logged = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${_result!.detectedFood} added to today\'s log')),
+    );
+  }
+
   Future<void> _chooseSource() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -180,6 +211,13 @@ class _FoodAnalysisScreenState extends State<FoodAnalysisScreen> {
                 ));
                 setState(() => _saved = true);
               },
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            _NutrientPanel(
+              estimate: _result!.nutrients,
+              targets: targetsForLifeStage(widget.profile.lifeStage),
+              logged: _logged,
+              onLog: _logScannedFood,
             ),
           ],
           if (_result == null && !_loading && _error == null)
@@ -389,6 +427,103 @@ class _AnalyzingSkeleton extends StatelessWidget {
           SizedBox(height: AppSpacing.xl),
           SkeletonBox(height: 190, radius: AppRadius.lg),
         ],
+      ),
+    );
+  }
+}
+
+
+/// Nutrients from the scan, with a servings stepper and one button to put
+/// them in today's log.
+///
+/// Shown even when the estimate is missing: the panel saying "no nutrients
+/// this time" is more useful than the panel silently not being there.
+class _NutrientPanel extends StatefulWidget {
+  const _NutrientPanel({
+    required this.estimate,
+    required this.targets,
+    required this.logged,
+    required this.onLog,
+  });
+
+  final NutrientEstimate? estimate;
+  final NutrientProfile targets;
+  final bool logged;
+  final ValueChanged<int> onLog;
+
+  @override
+  State<_NutrientPanel> createState() => _NutrientPanelState();
+}
+
+class _NutrientPanelState extends State<_NutrientPanel> {
+  int _servings = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final estimate = widget.estimate;
+
+    return Reveal(
+      child: AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.monitor_heart_rounded, size: 18, color: p.brand),
+                const SizedBox(width: AppSpacing.sm),
+                Text("What's in it", style: context.texts.titleSmall),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            if (estimate == null)
+              Text(
+                'Nutrients could not be worked out for this one. You can still '
+                'log it by name from the Track tab.',
+                style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textMuted),
+              )
+            else ...[
+              NutrientBreakdown(
+                nutrients: estimate.perServing * _servings,
+                targets: widget.targets,
+                servingDescription: _servings == 1
+                    ? estimate.servingDescription
+                    : '$_servings x ${estimate.servingDescription}',
+                note: estimate.note,
+                isEstimate: estimate.isEstimate,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: [
+                  Text('Servings', style: context.texts.titleSmall),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
+                    icon: const Icon(Icons.remove_circle_outline_rounded),
+                  ),
+                  SizedBox(
+                    width: 28,
+                    child: Text(
+                      '$_servings',
+                      textAlign: TextAlign.center,
+                      style: context.texts.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() => _servings++),
+                    icon: const Icon(Icons.add_circle_outline_rounded),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              GradientButton(
+                label: widget.logged ? 'Added to today' : "Add to today's log",
+                icon: widget.logged ? Icons.check_rounded : Icons.add_rounded,
+                onPressed: widget.logged ? null : () => widget.onLog(_servings),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

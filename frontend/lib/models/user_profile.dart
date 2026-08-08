@@ -65,6 +65,18 @@ String lifeStageLabel(LifeStage s) {
   }
 }
 
+/// Whole days from [from]'s date to [to]'s date.
+///
+/// Both are flattened to a date and compared in UTC. Subtracting the raw
+/// DateTimes instead would be wrong twice over: `inDays` truncates, so a due
+/// date at midnight reads one day closer than it is for the whole afternoon,
+/// and a daylight-saving change makes a 7-day gap measure 6 days 23 hours.
+int calendarDaysBetween(DateTime from, DateTime to) {
+  final a = DateTime.utc(from.year, from.month, from.day);
+  final b = DateTime.utc(to.year, to.month, to.day);
+  return b.difference(a).inDays;
+}
+
 /// Mirrors app/schemas.py: UserProfile, plus dueDate/babyBirthDate so the
 /// user sets a date once (in the Profile screen) instead of updating a
 /// week/month number manually - mirrors the backend's date_helpers.py logic.
@@ -100,10 +112,8 @@ class UserProfile {
   /// Standard pregnancy is ~40 weeks; count backward from the due date.
   int? get pregnancyWeek {
     if (dueDate == null) return null;
-    final daysRemaining = dueDate!.difference(DateTime.now()).inDays;
-    final weeksRemaining = daysRemaining ~/ 7;
-    final week = 40 - weeksRemaining;
-    return week.clamp(1, 42);
+    final weeksRemaining = calendarDaysBetween(DateTime.now(), dueDate!) ~/ 7;
+    return (40 - weeksRemaining).clamp(1, 42);
   }
 
   int? get babyAgeMonths {

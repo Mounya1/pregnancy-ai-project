@@ -8,6 +8,7 @@ import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/gradient_button.dart';
 import '../widgets/ui/reveal.dart';
+import '../widgets/weekly_updates_card.dart';
 
 class RemindersScreen extends StatelessWidget {
   const RemindersScreen({super.key});
@@ -77,6 +78,14 @@ class RemindersScreen extends StatelessWidget {
                 ),
               ),
             ),
+          // Automatic updates first: they need no setup beyond a date, and
+          // they are what most people came to this screen hoping for.
+          const Reveal(child: WeeklyUpdatesCard()),
+          const SizedBox(height: AppSpacing.xxl),
+          const SectionHeader(
+            title: 'Your reminders',
+            subtitle: 'Alarms you set yourself',
+          ),
           if (reminders.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: AppSpacing.xxl),

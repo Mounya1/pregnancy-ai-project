@@ -1,10 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'screens/home_screen.dart';
+import 'screens/auth/auth_gate.dart';
+import 'services/auth_controller.dart';
+import 'services/emergency_controller.dart';
 import 'services/local_storage_service.dart';
+import 'services/milestone_controller.dart';
 import 'services/notification_service.dart';
+import 'services/nutrition_controller.dart';
 import 'services/profile_controller.dart';
 import 'services/reminder_controller.dart';
+import 'services/shopping_controller.dart';
 import 'services/theme_controller.dart';
 import 'theme/app_theme.dart';
 import 'theme/brand_flavor.dart';
@@ -26,9 +33,25 @@ class PregnancyAiApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthController(storage)..load()),
         ChangeNotifierProvider(create: (_) => ProfileController(storage)..load()),
         ChangeNotifierProvider(create: (_) => ThemeController(storage)..load()),
         ChangeNotifierProvider(create: (_) => ReminderController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => ShoppingController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => NutritionController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => EmergencyController(storage)..load()),
+        // Weekly updates are derived from the due date / birth date, so the
+        // schedule has to be rebuilt whenever the profile changes - not only
+        // when the toggle is touched.
+        ChangeNotifierProxyProvider<ProfileController, MilestoneController>(
+          create: (_) => MilestoneController(storage)..load(),
+          update: (_, profileController, milestones) {
+            final controller = milestones ?? MilestoneController(storage);
+            // Deferred: update() runs during build, and syncFor notifies.
+            scheduleMicrotask(() => controller.syncFor(profileController.profile));
+            return controller;
+          },
+        ),
       ],
       // The brand colour depends on the profile (violet while pregnant, then
       // the baby's colour), so the theme has to rebuild when either the theme
@@ -47,7 +70,8 @@ class PregnancyAiApp extends StatelessWidget {
             // app instead of snapping.
             themeAnimationDuration: AppMotion.slow,
             themeAnimationCurve: AppMotion.emphasized,
-            home: const HomeScreen(userName: 'Priya'),
+            // The gate picks between the splash, sign-up, sign-in, and Home.
+            home: const AuthGate(),
           );
         },
       ),
