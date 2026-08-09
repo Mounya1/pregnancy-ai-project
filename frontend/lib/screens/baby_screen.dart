@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/baby_record.dart';
+import '../models/doctor_note.dart';
 import '../models/user_profile.dart';
+import '../services/care_controller.dart';
 import '../services/local_storage_service.dart';
 import '../services/profile_controller.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +15,7 @@ import '../widgets/ui/gradient_button.dart';
 import '../widgets/ui/illustrations.dart';
 import '../widgets/ui/reveal.dart';
 import 'chat_screen.dart';
+import 'doctor_notes_screen.dart';
 
 /// Baby hub: growth tracking plus a always-available companion for the
 /// questions that come up at 3am.
@@ -101,9 +104,14 @@ class _BabyScreenState extends State<BabyScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
+          // Nothing below this point stands on its own. General guidance about
+          // babies is exactly that - general - and this block is what keeps
+          // your own paediatrician attached to it.
+          Reveal(child: _DoctorBlock(care: context.watch<CareController>())),
+          const SizedBox(height: AppSpacing.xxl),
           const SectionHeader(
             title: 'Ask anything, any time',
-            subtitle: 'Grounded in AAP and CDC infant-feeding guidance',
+            subtitle: 'General AAP and CDC guidance - your doctor knows your baby',
           ),
           Wrap(
             spacing: AppSpacing.sm,
@@ -526,6 +534,111 @@ class _AddRecordSheetState extends State<_AddRecordSheet> {
             icon: Icons.check_rounded,
             onPressed: _submit,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// What your paediatrician said, shown above every piece of general baby
+/// guidance on this screen.
+///
+/// When there is nothing on file it says so and offers the one action that
+/// fixes it, rather than quietly letting general advice look personalised.
+class _DoctorBlock extends StatelessWidget {
+  const _DoctorBlock({required this.care});
+
+  final CareController care;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final notes = care.notesFor(NoteSubject.baby);
+    final latest = notes.isEmpty ? null : notes.first;
+
+    void open() => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DoctorNotesScreen()),
+        );
+
+    if (latest == null) {
+      return AppCard(
+        onTap: open,
+        color: p.limitSurface,
+        borderColor: p.limit.withValues(alpha: 0.3),
+        shadow: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.medical_information_rounded, size: 18, color: p.limit),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Nothing from your doctor yet', style: context.texts.titleSmall),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Everything below is general guidance for babies in general, '
+                    'not advice about yours. Add what your paediatrician told you '
+                    'so it sits alongside.',
+                    style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textSecondary),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Add doctor notes',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: p.limit,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppCard(
+      onTap: open,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.medical_information_rounded, size: 17, color: Brand.teal),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text('What your doctor said', style: context.texts.titleSmall),
+              ),
+              Text(
+                DateFormat('d MMM').format(latest.visitedAt),
+                style: TextStyle(fontSize: 10.5, color: p.textMuted),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            latest.title,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            latest.body,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textSecondary),
+          ),
+          if (notes.length > 1) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              '${notes.length - 1} earlier note${notes.length == 2 ? '' : 's'}',
+              style: TextStyle(fontSize: 10.5, color: p.textMuted),
+            ),
+          ],
         ],
       ),
     );

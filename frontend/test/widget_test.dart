@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pregnancy_ai_assistant/main.dart';
 import 'package:pregnancy_ai_assistant/models/baby_month.dart';
 import 'package:pregnancy_ai_assistant/models/baby_record.dart';
+import 'package:pregnancy_ai_assistant/models/care_plan.dart';
+import 'package:pregnancy_ai_assistant/models/doctor_note.dart';
 import 'package:pregnancy_ai_assistant/models/emergency_contact.dart';
 import 'package:pregnancy_ai_assistant/models/milestone.dart';
 import 'package:pregnancy_ai_assistant/models/nutrition_log.dart';
@@ -19,6 +21,7 @@ import 'package:pregnancy_ai_assistant/models/user_profile.dart';
 import 'package:pregnancy_ai_assistant/models/weekly_stats.dart';
 import 'package:pregnancy_ai_assistant/models/account.dart';
 import 'package:pregnancy_ai_assistant/services/auth_controller.dart';
+import 'package:pregnancy_ai_assistant/services/care_controller.dart';
 import 'package:pregnancy_ai_assistant/services/emergency_controller.dart';
 import 'package:pregnancy_ai_assistant/services/local_storage_service.dart';
 import 'package:pregnancy_ai_assistant/services/milestone_controller.dart';
@@ -548,6 +551,192 @@ void main() {
       expect(AppPalette.lightFor(flavor).safe, AppPalette.lightFor(BrandFlavor.violet).safe);
       expect(AppPalette.darkFor(flavor).isDark, isTrue);
     }
+  });
+
+  // ---- Care plan: to-do, supplements, doctor notes ----
+
+  test('the to-do list follows the stage, and every task explains itself', () {
+    List<CareSection> at(UserProfile profile) => careTasksFor(profile);
+
+    UserProfile pregnantAt(int week) => UserProfile(
+          lifeStage: LifeStage.pregnancy,
+          dueDate: DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day + (40 - week) * 7,
+          ),
+        );
+
+    // Current trimester leads.
+    expect(at(pregnantAt(8)).first.title, 'First trimester');
+    expect(at(pregnantAt(20)).first.title, 'Second trimester');
+    expect(at(pregnantAt(34)).first.title, 'Third trimester');
+    // Late pregnancy gets the newborn list too - too late to read it after.
+    expect(at(pregnantAt(34)).any((s) => s.title == 'What your baby needs'), isTrue);
+
+    // Newborn leads once the baby is here.
+    final newborn = at(UserProfile(
+      lifeStage: LifeStage.breastfeeding,
+      babyBirthDate: DateTime.now().subtract(const Duration(days: 20)),
+    ));
+    expect(newborn.first.title, 'What your baby needs');
+
+    // General nutrition has no antenatal to-do list at all.
+    expect(at(UserProfile()), isEmpty);
+
+    // Every task, in every list, is unique and says what and why.
+    final all = [
+      ...at(pregnantAt(8)),
+      ...at(pregnantAt(20)),
+      ...at(pregnantAt(34)),
+      ...newborn,
+    ].expand((s) => s.tasks).toList();
+    final ids = all.map((t) => t.id).toSet();
+    for (final task in all) {
+      expect(task.title, isNotEmpty);
+      expect(task.detail, isNotEmpty, reason: '${task.id} has no explanation');
+    }
+    expect(ids.length, greaterThan(20));
+  });
+
+  test('supplements cover omega-3 and flag what needs a doctor', () {
+    final pregnancy = supplementsFor(UserProfile(
+      lifeStage: LifeStage.pregnancy,
+      dueDate: DateTime.now().add(const Duration(days: 100)),
+    ));
+
+    final byId = {for (final s in pregnancy) s.id: s};
+    expect(byId.keys, contains('s_folic'));
+    expect(byId.keys, contains('s_omega'));
+    expect(byId.keys, contains('s_vitd'));
+
+    final omega = byId['s_omega']!;
+    expect(omega.name, contains('Omega-3'));
+    expect(omega.foodSources.toLowerCase(), contains('salmon'));
+    // The one genuinely dangerous mistake with omega-3 in pregnancy.
+    expect(omega.warning.toLowerCase(), contains('cod liver oil'));
+
+    // Iron is dose-by-bloods, not something to start on your own.
+    expect(byId['s_iron']!.confirmWithDoctor, isTrue);
+    // Folic acid is not - everyone takes it, and hedging it would be harmful.
+    expect(byId['s_folic']!.confirmWithDoctor, isFalse);
+
+    // Babies get their own list, headed by vitamin D drops.
+    final baby = supplementsFor(UserProfile(
+      lifeStage: LifeStage.breastfeeding,
+      babyBirthDate: DateTime.now().subtract(const Duration(days: 10)),
+    ));
+    expect(baby.first.id, 'bs_vitd');
+    expect(baby.first.dose, contains('400 IU'));
+
+    // General nutrition gets no pregnancy supplement advice.
+    expect(supplementsFor(UserProfile()), isEmpty);
+
+    // And the avoid list exists, because it is the part that prevents harm.
+    expect(kSupplementsToAvoid.join(' ').toLowerCase(), contains('retinol'));
+  });
+
+  test('doctor notes stay separated by subject and survive storage', () async {
+    SharedPreferences.setMockInitialValues(_signedInPrefs());
+    final storage = LocalStorageService();
+    final care = CareController(storage);
+    await care.load();
+
+    expect(care.hasBabyNotes, isFalse);
+    expect(care.hasMotherNotes, isFalse);
+
+    await care.saveNote(DoctorNote(
+      id: 'n1',
+      subject: NoteSubject.mother,
+      title: '20 week scan',
+      body: 'All measurements normal. Anterior placenta.',
+      visitedAt: DateTime(2026, 3, 2),
+      clinician: 'Dr Rao',
+      nextAppointment: DateTime.now().add(const Duration(days: 28)),
+    ));
+    await care.saveNote(DoctorNote(
+      id: 'n2',
+      subject: NoteSubject.baby,
+      title: '6 week check',
+      body: 'Hips and heart fine. Continue vitamin D drops.',
+      visitedAt: DateTime(2026, 7, 15),
+    ));
+
+    expect(care.hasMotherNotes, isTrue);
+    expect(care.hasBabyNotes, isTrue);
+    expect(care.notesFor(NoteSubject.baby).single.title, '6 week check');
+    expect(care.notesFor(NoteSubject.mother).single.clinician, 'Dr Rao');
+
+    // Newest first - the last thing you were told is what you are looking for.
+    expect(care.notes.first.id, 'n2');
+
+    // The upcoming appointment is found across both subjects.
+    expect(care.nextAppointment?.id, 'n1');
+
+    final reloaded = CareController(storage);
+    await reloaded.load();
+    expect(reloaded.notes.length, 2);
+    expect(reloaded.notesFor(NoteSubject.baby).single.body, contains('vitamin D'));
+
+    await reloaded.removeNote(reloaded.notesFor(NoteSubject.baby).single);
+    expect(reloaded.hasBabyNotes, isFalse);
+  });
+
+  test('a past appointment is not reported as upcoming', () {
+    final past = DoctorNote(
+      id: 'x',
+      subject: NoteSubject.mother,
+      title: 'Booking',
+      body: 'Bloods taken.',
+      visitedAt: DateTime(2026, 1, 5),
+      nextAppointment: DateTime(2026, 1, 20),
+    );
+    expect(past.hasUpcoming, isFalse);
+
+    final future = past.copyWith(
+      nextAppointment: DateTime.now().add(const Duration(days: 3)),
+    );
+    expect(future.hasUpcoming, isTrue);
+
+    // Round trip keeps both dates and the subject.
+    final restored = DoctorNote.fromJson(future.toJson());
+    expect(restored.subject, NoteSubject.mother);
+    expect(restored.visitedAt, DateTime(2026, 1, 5));
+    expect(restored.hasUpcoming, isTrue);
+  });
+
+  test('care task ticks persist', () async {
+    SharedPreferences.setMockInitialValues(_signedInPrefs());
+    final storage = LocalStorageService();
+    final care = CareController(storage);
+    await care.load();
+
+    expect(care.isDone('t1_folic'), isFalse);
+    await care.toggleTask('t1_folic');
+    expect(care.isDone('t1_folic'), isTrue);
+
+    final reloaded = CareController(storage);
+    await reloaded.load();
+    expect(reloaded.isDone('t1_folic'), isTrue);
+
+    await reloaded.toggleTask('t1_folic');
+    expect(reloaded.isDone('t1_folic'), isFalse);
+  });
+
+  testWidgets('baby guidance is never shown without the doctor block',
+      (tester) async {
+    await tester.pumpWidget(const PregnancyAiApp());
+    await _settleHome(tester);
+
+    await _tapNav(tester, 'Baby');
+
+    // With nothing on file, the screen says so before any general advice.
+    expect(find.text('Nothing from your doctor yet'), findsOneWidget);
+    expect(find.text('Add doctor notes'), findsOneWidget);
+    expect(
+      find.text('General AAP and CDC guidance - your doctor knows your baby'),
+      findsOneWidget,
+    );
   });
 
   // ---- Emergency contacts ----

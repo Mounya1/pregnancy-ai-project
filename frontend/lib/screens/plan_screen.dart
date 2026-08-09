@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/ui/segmented_tabs.dart';
+import 'care_screen.dart';
 import 'fitness_screen.dart';
 import 'meal_planner_screen.dart';
 import 'shopping_screen.dart';
@@ -12,10 +13,11 @@ class PlanScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const SectionScaffold(
       title: 'Plan',
-      labels: ['Meals', 'Fitness', 'Shop'],
+      labels: ['Meals', 'Fitness', 'To-do', 'Shop'],
       children: [
         MealPlannerScreen(embedded: true),
         FitnessScreen(embedded: true),
+        CareScreen(embedded: true),
         ShoppingScreen(embedded: true),
       ],
     );

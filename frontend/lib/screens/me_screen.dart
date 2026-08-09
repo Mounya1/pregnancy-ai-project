@@ -9,6 +9,7 @@ import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/illustrations.dart';
 import '../widgets/ui/reveal.dart';
 import 'auth/account_screen.dart';
+import 'doctor_notes_screen.dart';
 import 'emergency_screen.dart';
 import 'medical_report_screen.dart';
 import 'profile_screen.dart';
@@ -78,6 +79,13 @@ class MeScreen extends StatelessWidget {
             title: 'Emergency contacts',
             subtitle: 'Hospital, midwife, and who to call',
             onTap: () => _open(context, const EmergencyScreen()),
+          ),
+          _MenuTile(
+            icon: Icons.medical_information_rounded,
+            tint: Brand.teal,
+            title: 'Doctor notes',
+            subtitle: 'What you were told, about you and your baby',
+            onTap: () => _open(context, const DoctorNotesScreen()),
           ),
           _MenuTile(
             icon: Icons.health_and_safety_rounded,

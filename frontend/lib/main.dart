@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/auth/auth_gate.dart';
 import 'services/auth_controller.dart';
+import 'services/care_controller.dart';
 import 'services/emergency_controller.dart';
 import 'services/local_storage_service.dart';
 import 'services/milestone_controller.dart';
@@ -40,6 +41,7 @@ class PregnancyAiApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ShoppingController(storage)..load()),
         ChangeNotifierProvider(create: (_) => NutritionController(storage)..load()),
         ChangeNotifierProvider(create: (_) => EmergencyController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => CareController(storage)..load()),
         // Weekly updates are derived from the due date / birth date, so the
         // schedule has to be rebuilt whenever the profile changes - not only
         // when the toggle is touched.

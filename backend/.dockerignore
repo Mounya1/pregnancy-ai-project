@@ -1,0 +1,13 @@
+# Keep the image small and make sure a local .env can never be baked into it.
+.env
+*.env
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+generated_audio/*
+.pytest_cache/
+
+# vector_store is NOT ignored - the FAISS index ships with the image, which is
+# what lets the container answer the first request without rebuilding it.

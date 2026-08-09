@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import settings
+
 from app.routers import (
     chat,
     voice,
@@ -19,9 +21,11 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Origins come from ALLOWED_ORIGINS. Wide open by default so local development
+# works out of the box; set the env var on your deployment.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this to your app's domain before production
+    allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

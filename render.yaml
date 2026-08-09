@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: pregnancy-ai-backend
+    runtime: docker
+    # The blueprint has to sit at the repo root, but the app is in backend/ -
+    # rootDir points the build there so the Dockerfile's COPY . . picks up the
+    # backend only, not the Flutter app.
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    envVars:
+      # Set this to your deployed web app's origin once you have one, e.g.
+      # https://your-app.netlify.app - "*" leaves the API open to any site.
+      - key: ALLOWED_ORIGINS
+        value: "*"
+      - key: OPENAI_API_KEY
+        sync: false   # set this manually in the Render dashboard, never commit it
+      - key: CHAT_MODEL
+        value: gpt-4o
+      - key: VISION_MODEL
+        value: gpt-4o
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small

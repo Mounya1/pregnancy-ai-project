@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/account.dart';
 import '../models/baby_record.dart';
+import '../models/doctor_note.dart';
 import '../models/emergency_contact.dart';
 import '../models/history_entry.dart';
 import '../models/medical_report.dart';
@@ -27,6 +28,8 @@ class LocalStorageService {
   static const _remindersKey = 'reminders';
   static const _milestonesKey = 'milestone_settings';
   static const _contactsKey = 'emergency_contacts';
+  static const _notesKey = 'doctor_notes';
+  static const _careDoneKey = 'care_done';
   static const _shoppingRegionKey = 'shopping_region';
   static const _shoppingCheckedKey = 'shopping_checked';
   static const _reportsKey = 'medical_reports';
@@ -214,6 +217,34 @@ class LocalStorageService {
   Future<void> saveMilestoneSettings(Map<String, dynamic> json) async {
     final prefs = await _prefs;
     await prefs.setString(_milestonesKey, jsonEncode(json));
+  }
+
+  // ---- Doctor notes ----
+
+  Future<List<DoctorNote>> loadDoctorNotes() async {
+    final prefs = await _prefs;
+    final raw = prefs.getStringList(_notesKey) ?? [];
+    return raw.map((s) => DoctorNote.fromJson(jsonDecode(s))).toList();
+  }
+
+  Future<void> saveDoctorNotes(List<DoctorNote> notes) async {
+    final prefs = await _prefs;
+    await prefs.setStringList(
+      _notesKey,
+      notes.map((n) => jsonEncode(n.toJson())).toList(),
+    );
+  }
+
+  // ---- Care plan tick marks ----
+
+  Future<List<String>> loadCareDone() async {
+    final prefs = await _prefs;
+    return prefs.getStringList(_careDoneKey) ?? const [];
+  }
+
+  Future<void> saveCareDone(List<String> ids) async {
+    final prefs = await _prefs;
+    await prefs.setStringList(_careDoneKey, ids);
   }
 
   // ---- Emergency contacts ----
