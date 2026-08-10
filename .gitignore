@@ -28,3 +28,7 @@ frontend/android/key.properties
 # OS noise
 .DS_Store
 Thumbs.db
+
+# Local editor/tool settings - not part of the project
+.claude/
+.vscode/
