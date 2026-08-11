@@ -29,6 +29,5 @@ frontend/android/key.properties
 .DS_Store
 Thumbs.db
 
-# Local editor/tool settings - not part of the project
-.claude/
+# Local editor settings - not part of the project
 .vscode/
