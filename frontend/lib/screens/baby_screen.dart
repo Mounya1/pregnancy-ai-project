@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/baby_record.dart';
 import '../models/doctor_note.dart';
-import '../models/user_profile.dart';
 import '../services/care_controller.dart';
 import '../services/local_storage_service.dart';
 import '../services/profile_controller.dart';
@@ -12,13 +11,19 @@ import '../widgets/ui/app_card.dart';
 import '../widgets/ui/charts.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/gradient_button.dart';
+import '../widgets/ui/photo_banner.dart';
 import '../widgets/ui/illustrations.dart';
 import '../widgets/ui/reveal.dart';
-import 'chat_screen.dart';
 import 'doctor_notes_screen.dart';
+import 'emergency_screen.dart';
 
-/// Baby hub: growth tracking plus a always-available companion for the
-/// questions that come up at 3am.
+/// Baby hub: growth tracking, and what your paediatrician has told you.
+///
+/// There is deliberately no AI companion here. Feeding, sleep and safety
+/// questions about a specific baby need someone who has examined that baby -
+/// an answer generated from general guidance reads as authoritative and is
+/// exactly the kind of thing that stops a parent making the call they should
+/// have made.
 class BabyScreen extends StatefulWidget {
   const BabyScreen({super.key});
 
@@ -30,15 +35,6 @@ class _BabyScreenState extends State<BabyScreen> {
   final _storage = LocalStorageService();
   List<BabyRecord> _records = [];
   bool _loading = true;
-
-  static const _companionPrompts = [
-    'When can my baby start solids?',
-    'Is my baby feeding enough?',
-    'Which foods are choking hazards?',
-    'How do I introduce allergens safely?',
-    'What should I do about reflux?',
-    'How much water can my baby have?',
-  ];
 
   @override
   void initState() {
@@ -73,16 +69,8 @@ class _BabyScreenState extends State<BabyScreen> {
     await _load();
   }
 
-  void _ask(UserProfile profile, String question) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ChatScreen(profile: profile, initialQuestion: question)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final p = context.palette;
     final profile = context.watch<ProfileController>().profile;
     final ageMonths = profile.babyAgeMonths;
     final latest = _records.isEmpty ? null : _records.last;
@@ -97,50 +85,20 @@ class _BabyScreenState extends State<BabyScreen> {
           110,
         ),
         children: [
-          Reveal(
-            child: _CompanionCard(
-              ageMonths: ageMonths,
-              onAsk: () => _ask(profile, ''),
+          const Reveal(
+            child: PhotoBanner(
+              image: 'assets/images/mother_baby.jpg',
+              title: 'You and your baby',
+              subtitle: 'Growth, and what your doctor has told you',
             ),
           ),
+          const SizedBox(height: AppSpacing.xl),
+          Reveal(child: _AskYourDoctorCard(ageMonths: ageMonths)),
           const SizedBox(height: AppSpacing.xl),
           // Nothing below this point stands on its own. General guidance about
           // babies is exactly that - general - and this block is what keeps
           // your own paediatrician attached to it.
           Reveal(child: _DoctorBlock(care: context.watch<CareController>())),
-          const SizedBox(height: AppSpacing.xxl),
-          const SectionHeader(
-            title: 'Ask anything, any time',
-            subtitle: 'General AAP and CDC guidance - your doctor knows your baby',
-          ),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: _companionPrompts
-                .map((q) => Pressable(
-                      onTap: () => _ask(profile, q),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.sm,
-                        ),
-                        decoration: BoxDecoration(
-                          color: p.brandSurface,
-                          borderRadius: BorderRadius.circular(AppRadius.pill),
-                          border: Border.all(color: p.brand.withValues(alpha: 0.2)),
-                        ),
-                        child: Text(
-                          q,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: p.brandSoft,
-                          ),
-                        ),
-                      ),
-                    ))
-                .toList(),
-          ),
           const SizedBox(height: AppSpacing.xxl),
           SectionHeader(
             title: 'Growth',
@@ -184,16 +142,18 @@ class _BabyScreenState extends State<BabyScreen> {
   }
 }
 
-class _CompanionCard extends StatelessWidget {
-  const _CompanionCard({required this.ageMonths, required this.onAsk});
+class _AskYourDoctorCard extends StatelessWidget {
+  const _AskYourDoctorCard({required this.ageMonths});
 
   final int? ageMonths;
-  final VoidCallback onAsk;
 
   @override
   Widget build(BuildContext context) {
     return GradientCard(
-      onTap: onAsk,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const EmergencyScreen()),
+      ),
       padding: EdgeInsets.zero,
       child: Stack(
         children: [
@@ -203,63 +163,75 @@ class _CompanionCard extends StatelessWidget {
             bottom: -12,
             child: Opacity(
               opacity: 0.38,
-              child: BabyIllustration(
+              child: HoldingBabyIllustration(
                 color: Colors.white,
                 accent: Color(0xFFF3E9FF),
-                size: 118,
+                size: 122,
               ),
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
-            child: _content(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _content(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.support_agent_rounded, color: Colors.white, size: 24),
-        ),
-        const SizedBox(width: AppSpacing.lg),
-        Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                const Text(
-                  '24/7 baby companion',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.medical_services_rounded, color: Colors.white, size: 24),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  ageMonths == null
-                      ? 'Feeding, sleep, and safety questions answered any time'
-                      : 'Answers tuned to a $ageMonths-month-old',
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.4,
-                    color: Colors.white.withValues(alpha: 0.9),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Ask your paediatrician',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        ageMonths == null
+                            ? 'Feeding, sleep, and safety questions need someone who '
+                                'has examined your baby'
+                            : 'Questions about a $ageMonths-month-old need someone who '
+                                'has examined them',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Row(
+                        children: [
+                          const Icon(Icons.call_rounded, size: 13, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Your contacts',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white.withValues(alpha: 0.95),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        const Icon(Icons.chevron_right_rounded, color: Colors.white),
-      ],
+        ],
+      ),
     );
   }
 }

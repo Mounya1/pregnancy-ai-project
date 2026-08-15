@@ -8,6 +8,7 @@ import '../services/shopping_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
+import '../widgets/ui/photo_banner.dart';
 import '../widgets/ui/reveal.dart';
 
 /// What to buy for this stage, in the shops that exist where you live.
@@ -34,6 +35,15 @@ class ShoppingScreen extends StatelessWidget {
           AppSpacing.xxl,
         ),
         children: [
+          const Reveal(
+            child: PhotoBanner(
+              image: 'assets/images/baby_shopping.jpg',
+              title: 'What to buy',
+              subtitle: 'For this stage, in the shops near you',
+              alignment: Alignment.topCenter,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
           Reveal(child: _RegionCard(shopping: shopping)),
           const SizedBox(height: AppSpacing.xl),
           Reveal(child: _NearbyRow(region: shopping.region)),

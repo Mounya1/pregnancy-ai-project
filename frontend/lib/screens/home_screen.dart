@@ -11,7 +11,6 @@ import '../services/reminder_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_nav_bar.dart';
 import '../widgets/week_ring.dart';
-import '../widgets/interaction_mode_selector.dart';
 import '../widgets/ui/app_card.dart';
 import '../widgets/ui/illustrations.dart';
 import '../widgets/ui/progress_ring.dart';
@@ -19,7 +18,6 @@ import '../widgets/ui/reveal.dart';
 import '../widgets/ui/verdict_chip.dart';
 import 'baby_screen.dart';
 import 'chat_screen.dart';
-import 'food_analysis_screen.dart';
 import 'me_screen.dart';
 import 'nutrition_tracker_screen.dart';
 import 'plan_screen.dart';
@@ -157,8 +155,6 @@ class _HomeTabState extends State<_HomeTab> {
   void _openChat(UserProfile profile, {bool startWithVoice = false}) =>
       _push(ChatScreen(profile: profile, startWithVoice: startWithVoice));
 
-  void _openScan(UserProfile profile) => _push(FoodAnalysisScreen(profile: profile));
-
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -195,21 +191,25 @@ class _HomeTabState extends State<_HomeTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // One way in, not three. Typing, speaking and scanning all
+                // live inside the chat composer now, so offering them as
+                // separate front doors just made the same room harder to find.
                 Reveal.stagger(
                   index: 0,
-                  child: const _SectionTitle('How would you like to ask?'),
+                  child: const _SectionTitle('Ask about any food'),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 Reveal.stagger(
                   index: 1,
-                  child: InteractionModeSelector(
-                    onType: () => _openChat(profile),
-                    onVoice: () => _openChat(profile, startWithVoice: true),
-                    onScan: () => _openScan(profile),
-                  ),
+                  child: _AskCard(onTap: () => _openChat(profile)),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-                Reveal.stagger(index: 2, child: _StageArtCard(profile: profile)),
+                Reveal.stagger(
+                  index: 2,
+                  child: _PhotoShortcuts(onOpenPlan: () => widget.onOpenTab(1)),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                Reveal.stagger(index: 3, child: _StageArtCard(profile: profile)),
                 const SizedBox(height: AppSpacing.xxl),
                 Reveal.stagger(index: 3, child: _InsightCard(profile: profile)),
                 const SizedBox(height: AppSpacing.xxl),
@@ -1129,6 +1129,225 @@ class _RecentTile extends StatelessWidget {
             const SizedBox(width: AppSpacing.sm),
             VerdictChip(verdict: entry.motherResult.verdict, compact: true),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Three photo tiles into the Plan section.
+///
+/// These are shortcuts, not decoration - every tile goes somewhere, which is
+/// the only reason a photo earns space on a screen this busy.
+class _PhotoShortcuts extends StatelessWidget {
+  const _PhotoShortcuts({required this.onOpenPlan});
+
+  final VoidCallback onOpenPlan;
+
+  @override
+  Widget build(BuildContext context) {
+    const tiles = [
+      ('assets/images/nutrition.jpg', 'Meals', Icons.restaurant_rounded),
+      ('assets/images/fitness.jpg', 'Fitness', Icons.self_improvement_rounded),
+      ('assets/images/baby_shopping.jpg', 'Shop', Icons.shopping_basket_rounded),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Your week'),
+        const SizedBox(height: AppSpacing.md),
+        SizedBox(
+          height: 104,
+          child: Row(
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _PhotoTile(
+                    image: tiles[i].$1,
+                    label: tiles[i].$2,
+                    icon: tiles[i].$3,
+                    onTap: onOpenPlan,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({
+    required this.image,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String image;
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+
+    return Pressable(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              image,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => DecoratedBox(
+                decoration: BoxDecoration(gradient: p.heroGradient),
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Color(0xE6000000), Color(0x40000000)],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 15, color: Colors.white),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The single entry into the assistant.
+///
+/// Type, speak, and scan are all in the chat composer, so this card advertises
+/// them rather than splitting them into three destinations that each land in
+/// the same place.
+class _AskCard extends StatelessWidget {
+  const _AskCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+
+    return Pressable(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: SizedBox(
+          height: 168,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/mother_eating.jpg',
+                fit: BoxFit.cover,
+                alignment: const Alignment(0, -0.15),
+                errorBuilder: (_, __, ___) => DecoratedBox(
+                  decoration: BoxDecoration(gradient: p.heroGradient),
+                ),
+              ),
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomLeft,
+                    end: Alignment.topRight,
+                    colors: [Color(0xF2000000), Color(0x33000000)],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Is this safe for me?',
+                      style: TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    // The three inputs, named where they are discoverable but
+                    // not where they fragment the journey.
+                    Row(
+                      children: [
+                        for (final mode in const [
+                          (Icons.keyboard_rounded, 'Type'),
+                          (Icons.mic_none_rounded, 'Speak'),
+                          (Icons.photo_camera_outlined, 'Scan'),
+                        ]) ...[
+                          Container(
+                            margin: const EdgeInsets.only(right: AppSpacing.sm),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(AppRadius.pill),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(mode.$1, size: 13, color: Colors.white),
+                                const SizedBox(width: 5),
+                                Text(
+                                  mode.$2,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../services/local_storage_service.dart';
 import '../services/profile_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui/app_card.dart';
+import '../widgets/ui/photo_banner.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/gradient_button.dart';
 import '../widgets/ui/reveal.dart';
@@ -97,6 +98,15 @@ class _FitnessScreenState extends State<FitnessScreen> {
           AppSpacing.xxl,
         ),
         children: [
+          const Reveal(
+            child: PhotoBanner(
+              image: 'assets/images/fitness.jpg',
+              title: 'Moving safely',
+              subtitle: 'Built for your stage - and what to stop for',
+              height: 150,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
           Reveal(child: _StageBanner(profile: profile)),
           const SizedBox(height: AppSpacing.xl),
           AppCard(

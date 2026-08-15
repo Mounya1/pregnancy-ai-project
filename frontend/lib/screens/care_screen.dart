@@ -9,6 +9,7 @@ import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/illustrations.dart';
 import '../widgets/ui/reveal.dart';
+import '../widgets/ui/photo_banner.dart';
 import 'doctor_notes_screen.dart';
 
 /// What to do and what to take, for whichever stage you are in.
@@ -39,6 +40,16 @@ class CareScreen extends StatelessWidget {
           AppSpacing.xxl,
         ),
         children: [
+          Reveal(
+            child: PhotoBanner(
+              image: hasBaby
+                  ? 'assets/images/mother_baby.jpg'
+                  : 'assets/images/mother.jpg',
+              title: hasBaby ? 'Your baby\'s first year' : 'Your pregnancy plan',
+              subtitle: 'Appointments, tests, and what to take',
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
           Reveal(child: _CareHero(done: done, total: total, hasBaby: hasBaby)),
           const SizedBox(height: AppSpacing.xl),
           Reveal(

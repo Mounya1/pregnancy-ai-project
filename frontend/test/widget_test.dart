@@ -169,7 +169,7 @@ void main() {
     await _settleHome(tester);
 
     expect(find.text('Priya'), findsOneWidget);
-    expect(find.text('How would you like to ask?'), findsOneWidget);
+    expect(find.text('Ask about any food'), findsOneWidget);
 
     for (final label in ['Home', 'Plan', 'Track', 'Baby', 'Me']) {
       expect(_navItem(label), findsOneWidget);
@@ -218,7 +218,7 @@ void main() {
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(find.text('How would you like to ask?'), findsOneWidget);
+    expect(find.text('Ask about any food'), findsOneWidget);
   });
 
   test('reminder schedules and ids behave', () {
@@ -723,20 +723,29 @@ void main() {
     expect(reloaded.isDone('t1_folic'), isFalse);
   });
 
-  testWidgets('baby guidance is never shown without the doctor block',
+  testWidgets('the baby tab points at a doctor, not at an AI companion',
       (tester) async {
     await tester.pumpWidget(const PregnancyAiApp());
     await _settleHome(tester);
 
     await _tapNav(tester, 'Baby');
 
-    // With nothing on file, the screen says so before any general advice.
+    // What the tab offers now: your paediatrician, and what they told you.
+    expect(find.text('Ask your paediatrician'), findsOneWidget);
     expect(find.text('Nothing from your doctor yet'), findsOneWidget);
     expect(find.text('Add doctor notes'), findsOneWidget);
-    expect(
-      find.text('General AAP and CDC guidance - your doctor knows your baby'),
-      findsOneWidget,
-    );
+
+    // Growth sits below the photo banner now, so scroll rather than assume.
+    await tester.scrollUntilVisible(find.text('Growth'), 300);
+    await tester.pumpAndSettle();
+    expect(find.text('Growth'), findsOneWidget);
+
+    // And what it must never offer again: a chat that answers questions about
+    // a specific baby without anyone having examined that baby.
+    expect(find.text('24/7 baby companion'), findsNothing);
+    expect(find.text('Ask anything, any time'), findsNothing);
+    expect(find.text('When can my baby start solids?'), findsNothing);
+    expect(find.text('Is my baby feeding enough?'), findsNothing);
   });
 
   // ---- Emergency contacts ----
@@ -1004,15 +1013,22 @@ void main() {
     // The location-aware half: a region, and searches phrased for it.
     expect(find.text('FIND NEAR ME'), findsOneWidget);
     expect(find.text('Baby store'), findsOneWidget);
+
+    // Counter first, while it is still on screen - the list is lazy, so
+    // anything scrolled past stops being built.
+    expect(find.text('3 to look at'), findsOneWidget);
+
+    // Then scroll past the photo banner to reach the basket and tick one.
+    await tester.scrollUntilVisible(find.text('Food basket near you'), 300);
+    await tester.pumpAndSettle();
     expect(find.text('Food basket near you'), findsOneWidget);
 
-    // Ticking an item sticks, which is what makes this a list rather than an
-    // article. No ensureVisible: the first item is already on screen, and
-    // scrolling to it would push the counter out of the lazily-built list.
-    expect(find.text('3 to look at'), findsOneWidget);
     await tester.tap(find.textContaining('Iron:').first);
     await tester.pumpAndSettle();
 
+    // Back up to read the counter again.
+    await tester.scrollUntilVisible(find.text('1 of 3 ticked off'), -300);
+    await tester.pumpAndSettle();
     expect(find.text('1 of 3 ticked off'), findsOneWidget);
   });
 
@@ -1346,7 +1362,7 @@ void main() {
     expect(find.text('Create your account'), findsOneWidget);
     // Home must not be reachable behind it.
     expect(find.byType(AppNavBar), findsNothing);
-    expect(find.text('How would you like to ask?'), findsNothing);
+    expect(find.text('Ask about any food'), findsNothing);
   });
 
   testWidgets('creating an account signs you straight into Home', (tester) async {
@@ -1412,6 +1428,35 @@ void main() {
 
     expect(find.byType(AppNavBar), findsOneWidget);
     expect(find.text('Priya'), findsOneWidget);
+  });
+
+  testWidgets('sign out is reachable from Me without opening Account',
+      (tester) async {
+    await tester.pumpWidget(const PregnancyAiApp());
+    await _settleHome(tester);
+
+    await _tapNav(tester, 'Me');
+    await tester.scrollUntilVisible(
+      find.text('Sign out'),
+      300,
+      scrollable: find
+          .descendant(of: find.byType(MeScreen), matching: find.byType(Scrollable))
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+
+    // Confirms first - a stray tap must not lock someone out mid-task.
+    expect(find.text('Sign out?'), findsOneWidget);
+    await tester.tap(find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.text('Sign out'),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome back, Priya'), findsOneWidget);
+    expect(find.byType(AppNavBar), findsNothing);
   });
 
   testWidgets('signing out locks the app but keeps the account', (tester) async {

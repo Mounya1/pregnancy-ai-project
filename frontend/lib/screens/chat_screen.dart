@@ -1,19 +1,25 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import '../models/food_safety_response.dart';
+import '../models/nutrition_log.dart';
 import '../models/history_entry.dart';
 import '../models/saved_food.dart';
 import '../models/user_profile.dart';
 import '../services/api_client.dart';
 import '../services/api_error.dart';
 import '../services/local_storage_service.dart';
+import '../services/nutrition_controller.dart';
 import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/safety_verdict_card.dart';
 import '../widgets/ui/app_card.dart';
+import '../widgets/ui/gradient_button.dart';
 import '../widgets/ui/reveal.dart';
+import '../widgets/nutrient_breakdown.dart';
 import '../widgets/ui/typing_indicator.dart';
 
 sealed class _ChatEntry {}
@@ -29,19 +35,36 @@ class _AssistantMessage extends _ChatEntry {
   _AssistantMessage(this.response, this.query);
 }
 
+/// A photo the user sent, shown as their side of the conversation.
+class _UserPhoto extends _ChatEntry {
+  final Uint8List bytes;
+  _UserPhoto(this.bytes);
+}
+
+/// The answer to a photo: what it is, whether it is safe, and what is in it.
+class _ScanMessage extends _ChatEntry {
+  final FoodAnalysisResponse result;
+  _ScanMessage(this.result);
+}
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
     super.key,
     required this.profile,
     this.startWithVoice = false,
+    this.startWithScan = false,
     this.initialQuestion,
   });
 
   final UserProfile profile;
   final bool startWithVoice;
 
-  /// Sent automatically as soon as the screen opens, so entry points like the
-  /// baby companion's suggested questions land straight on an answer.
+  /// Opens the photo picker as soon as the screen appears, so "Scan" from
+  /// elsewhere lands on the camera rather than on an empty chat.
+  final bool startWithScan;
+
+  /// Sent automatically as soon as the screen opens, so an entry point that
+  /// already knows the question lands straight on an answer.
   final String? initialQuestion;
 
   @override
@@ -53,6 +76,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final _storage = LocalStorageService();
   late final _tts = TtsService(baseUrl: _api.baseUrl);
   final _recorder = AudioRecorder();
+  final _picker = ImagePicker();
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<_ChatEntry> _entries = [];
@@ -74,6 +98,9 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _voiceMode = widget.startWithVoice;
+    if (widget.startWithScan) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scan());
+    }
 
     final question = widget.initialQuestion;
     if (question != null && question.trim().isNotEmpty) {
@@ -129,6 +156,75 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _loading = false);
       _scrollToBottom();
     }
+  }
+
+  /// Camera or gallery, straight into the conversation.
+  ///
+  /// The photo becomes the user's message and the verdict becomes the reply,
+  /// so scanning is one more way of asking rather than a separate screen with
+  /// its own history.
+  Future<void> _scan() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_rounded),
+              title: const Text('Take a photo'),
+              subtitle: const Text('A meal, a package, or a label'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picked = await _picker.pickImage(source: source, imageQuality: 85);
+    if (picked == null) return;
+    final bytes = await picked.readAsBytes();
+    if (!mounted) return;
+
+    setState(() {
+      _entries.add(_UserPhoto(bytes));
+      _loading = true;
+      _voiceMode = false;
+    });
+    _scrollToBottom();
+
+    try {
+      final result = await _api.analyzeFoodImage(
+        imageBytes: bytes,
+        profile: widget.profile,
+      );
+      if (!mounted) return;
+      setState(() {
+        _entries.add(_ScanMessage(result));
+        _loading = false;
+      });
+      await _storage.logHistory(HistoryEntry(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        query: result.detectedFood,
+        motherResult: result.structured,
+        babyResult: result.babyStructured,
+        source: HistorySource.scan,
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(describeApiError(e, baseUrl: _api.baseUrl))),
+      );
+    }
+    _scrollToBottom();
   }
 
   Future<void> _toggleRecording() async {
@@ -290,6 +386,27 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
                       final entry = _entries[i];
                       if (entry is _UserMessage) return _UserBubble(text: entry.text);
+                      if (entry is _UserPhoto) return _UserPhotoBubble(bytes: entry.bytes);
+                      if (entry is _ScanMessage) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                          child: _ScanResult(
+                            result: entry.result,
+                            profile: widget.profile,
+                            onListen: () => _tts.speak(entry.result.structured.explanation),
+                            isSaved: _savedEntryIndices.contains(i),
+                            onSave: () async {
+                              await _storage.saveFoodBookmark(SavedFood(
+                                id: DateTime.now().microsecondsSinceEpoch.toString(),
+                                foodName: entry.result.detectedFood,
+                                motherResult: entry.result.structured,
+                                babyResult: entry.result.babyStructured,
+                              ));
+                              setState(() => _savedEntryIndices.add(i));
+                            },
+                          ),
+                        );
+                      }
                       if (entry is _AssistantMessage) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: AppSpacing.lg),
@@ -336,6 +453,7 @@ class _ChatScreenState extends State<ChatScreen> {
             onToggleVoice: () => setState(() => _voiceMode = !_voiceMode),
             onToggleRecording: _toggleRecording,
             onSend: _send,
+            onScan: _scan,
           ),
         ],
       ),
@@ -509,6 +627,7 @@ class _InputBar extends StatelessWidget {
     required this.onToggleVoice,
     required this.onToggleRecording,
     required this.onSend,
+    required this.onScan,
   });
 
   final TextEditingController controller;
@@ -517,6 +636,7 @@ class _InputBar extends StatelessWidget {
   final VoidCallback onToggleVoice;
   final VoidCallback onToggleRecording;
   final ValueChanged<String> onSend;
+  final VoidCallback onScan;
 
   @override
   Widget build(BuildContext context) {
@@ -565,8 +685,14 @@ class _InputBar extends StatelessWidget {
               const SizedBox(width: AppSpacing.xl),
               _PulsingMic(recording: recording, onTap: onToggleRecording),
               const SizedBox(width: AppSpacing.xl),
-              // Balances the keyboard button so the mic stays centred.
-              const SizedBox(width: 56),
+              SizedBox(
+                width: 56,
+                child: IconButton(
+                  onPressed: onScan,
+                  tooltip: 'Scan a food photo',
+                  icon: Icon(Icons.photo_camera_outlined, color: p.textSecondary),
+                ),
+              ),
             ],
           ),
         ],
@@ -584,10 +710,19 @@ class _InputBar extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Voice and camera sit beside the keyboard, so all three ways of
+          // asking are one tap from the same place instead of three screens.
           IconButton(
             onPressed: onToggleVoice,
             tooltip: 'Ask by voice',
+            visualDensity: VisualDensity.compact,
             icon: Icon(Icons.mic_none_rounded, color: p.textSecondary),
+          ),
+          IconButton(
+            onPressed: onScan,
+            tooltip: 'Scan a food photo',
+            visualDensity: VisualDensity.compact,
+            icon: Icon(Icons.photo_camera_outlined, color: p.textSecondary),
           ),
           Expanded(
             child: TextField(
@@ -595,7 +730,7 @@ class _InputBar extends StatelessWidget {
               textCapitalization: TextCapitalization.sentences,
               style: context.texts.bodyMedium,
               decoration: const InputDecoration(
-                hintText: 'Ask about a food...',
+                hintText: 'Ask, speak, or scan a food...',
                 contentPadding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
                   vertical: AppSpacing.md,
@@ -713,6 +848,147 @@ class _PulsingMicState extends State<_PulsingMic> with SingleTickerProviderState
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The photo the user sent, on their side of the conversation.
+class _UserPhotoBubble extends StatelessWidget {
+  const _UserPhotoBubble({required this.bytes});
+
+  final Uint8List bytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 220, maxHeight: 220),
+            decoration: BoxDecoration(border: Border.all(color: p.border)),
+            child: Image.memory(bytes, fit: BoxFit.cover),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The answer to a photo: what it was read as, the safety verdict, and the
+/// nutrients - with one tap to put it in today's log.
+class _ScanResult extends StatefulWidget {
+  const _ScanResult({
+    required this.result,
+    required this.profile,
+    required this.onListen,
+    required this.isSaved,
+    required this.onSave,
+  });
+
+  final FoodAnalysisResponse result;
+  final UserProfile profile;
+  final VoidCallback onListen;
+  final bool isSaved;
+  final VoidCallback onSave;
+
+  @override
+  State<_ScanResult> createState() => _ScanResultState();
+}
+
+class _ScanResultState extends State<_ScanResult> {
+  bool _logged = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final result = widget.result;
+    final estimate = result.nutrients;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // What the photo was read as. Shown first and plainly, because every
+        // verdict below it is only as right as this line.
+        Row(
+          children: [
+            Icon(Icons.photo_camera_rounded, size: 15, color: p.textMuted),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Read as: ${result.detectedFood}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: p.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (result.detectedIngredients.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            result.detectedIngredients.join('  •  '),
+            style: TextStyle(fontSize: 11, color: p.textMuted),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
+        DualVerdictSection(
+          motherResult: result.structured,
+          babyResult: result.babyStructured,
+          onListenMother: widget.onListen,
+          isSaved: widget.isSaved,
+          onSave: widget.onSave,
+        ),
+        if (estimate != null && estimate.recognised) ...[
+          const SizedBox(height: AppSpacing.md),
+          AppCard(
+            radius: AppRadius.md,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("What's in it", style: context.texts.titleSmall),
+                const SizedBox(height: AppSpacing.md),
+                NutrientBreakdown(
+                  nutrients: estimate.perServing,
+                  targets: targetsForLifeStage(widget.profile.lifeStage),
+                  servingDescription: estimate.servingDescription,
+                  note: estimate.note,
+                  isEstimate: estimate.isEstimate,
+                  dense: true,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SoftButton(
+                  label: _logged ? 'Added to today' : "Add to today's log",
+                  icon: _logged ? Icons.check_rounded : Icons.add_rounded,
+                  onPressed: _logged
+                      ? null
+                      : () async {
+                          await context.read<NutritionController>().add(
+                                NutritionEntry(
+                                  id: DateTime.now()
+                                      .microsecondsSinceEpoch
+                                      .toString(),
+                                  foodName: result.detectedFood,
+                                  servings: 1,
+                                  perServing: estimate.perServing,
+                                  servingDescription: estimate.servingDescription,
+                                  source: NutritionSource.scanned,
+                                ),
+                              );
+                          if (context.mounted) setState(() => _logged = true);
+                        },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

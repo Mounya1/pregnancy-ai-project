@@ -11,6 +11,7 @@ import '../widgets/ui/app_card.dart';
 import '../widgets/ui/empty_state.dart';
 import '../widgets/ui/gradient_button.dart';
 import '../widgets/ui/progress_ring.dart';
+import '../widgets/ui/photo_banner.dart';
 import '../widgets/nutrient_breakdown.dart';
 import '../widgets/ui/reveal.dart';
 import 'food_analysis_screen.dart';
@@ -96,6 +97,14 @@ class _NutritionTrackerScreenState extends State<NutritionTrackerScreen> {
                 100,
               ),
               children: [
+                const Reveal(
+                  child: PhotoBanner(
+                    image: 'assets/images/food_log.jpg',
+                    title: 'What you ate today',
+                    subtitle: 'Type it, scan it, or pick from the list',
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xl),
                 Reveal(
                   child: _TodayHero(
                     overall: overall,

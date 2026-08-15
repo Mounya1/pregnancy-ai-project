@@ -26,6 +26,35 @@ class MeScreen extends StatelessWidget {
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  /// Confirms first. A stray tap here should not lock someone out mid-task,
+  /// and the dialog is also where the "your data stays" promise is made.
+  Future<void> _confirmSignOut(BuildContext context) async {
+    final auth = context.read<AuthController>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text(
+          'Your profile, plans, logs, and notes stay on this device. You will '
+          'need your password to get back in.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) await auth.signOut();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
@@ -120,6 +149,18 @@ class MeScreen extends StatelessWidget {
             title: 'Settings',
             subtitle: 'Appearance, data, about',
             onTap: () => _open(context, const SettingsScreen()),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          // Signing out belongs where people look for it, not two screens
+          // deep inside Account.
+          _MenuTile(
+            icon: Icons.logout_rounded,
+            tint: p.avoid,
+            title: 'Sign out',
+            subtitle: account == null
+                ? 'Not signed in'
+                : 'Locks the app - your data stays on this device',
+            onTap: () => _confirmSignOut(context),
           ),
         ],
       ),
