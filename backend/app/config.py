@@ -2,11 +2,24 @@
 Central config. All secrets come from environment variables (.env),
 never hardcoded. Copy .env.example to .env and fill in your keys.
 """
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     openai_api_key: str = ""
+
+    @field_validator("openai_api_key", mode="after")
+    @classmethod
+    def _clean_key(cls, value: str) -> str:
+        """Strips whitespace and stray quotes from the API key.
+
+        Pasting into a hosting dashboard very often carries a trailing newline
+        or wrapping quotes, and OpenAI rejects the result with a bare
+        AuthenticationError that looks identical to a wrong key. Cheap to
+        defend against, and impossible to debug from the outside.
+        """
+        return value.strip().strip('"').strip("'")
     chat_model: str = "gpt-4o"
     vision_model: str = "gpt-4o"
     embedding_model: str = "text-embedding-3-small"

@@ -92,6 +92,10 @@ def health():
     """
     return {
         "status": "ok",
-        "openai_key_configured": bool(settings.openai_api_key.strip()),
+        "openai_key_configured": bool(settings.openai_api_key),
+        # Shape only - enough to spot a truncated or malformed paste, and
+        # useless to anyone who reads it. A real key is ~160 chars.
+        "openai_key_prefix": settings.openai_api_key[:7] or None,
+        "openai_key_length": len(settings.openai_api_key),
         "vector_store_present": os.path.isdir(settings.vector_store_path),
     }
