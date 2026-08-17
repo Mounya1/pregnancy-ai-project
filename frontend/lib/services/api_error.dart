@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Turns a failed request into something a person can act on.
 ///
@@ -9,11 +10,23 @@ import 'package:dio/dio.dart';
 String describeApiError(Object error, {required String baseUrl}) {
   if (error is! DioException) return 'Something went wrong. Please try again.';
 
+  // The single most likely production failure: a web build shipped without
+  // --dart-define=API_BASE_URL, so it is asking the visitor's own machine for
+  // the API. Telling them to "start the backend" would be nonsense - the
+  // person who needs to act is whoever built it.
+  if (_looksMisconfigured(baseUrl)) {
+    return 'This build was not given a backend address, so it is trying to '
+        'reach $baseUrl - a server on your own computer.\n\n'
+        'Whoever deployed this needs to rebuild with '
+        '--dart-define=API_BASE_URL=<the deployed API url> and set '
+        'API_BASE_URL in the hosting dashboard.';
+  }
+
   switch (error.type) {
     case DioExceptionType.connectionError:
     case DioExceptionType.badCertificate:
       return 'Cannot reach the server at $baseUrl.\n'
-          'Start the backend, and on a phone re-run the adb reverse tunnel.';
+          '${_isLocal(baseUrl) ? 'Start the backend, and on a phone re-run the adb reverse tunnel.' : 'The server may be starting up - free hosting sleeps when idle, so the first request can take up to a minute. Try again.'}';
 
     case DioExceptionType.connectionTimeout:
       return 'The server at $baseUrl did not respond in time.\n'
@@ -32,7 +45,7 @@ String describeApiError(Object error, {required String baseUrl}) {
       final detail = _detailFrom(error.response?.data);
       if (status == 401 || status == 403) {
         return 'The server rejected the request ($status). '
-            'Check the OPENAI_API_KEY in backend/.env.';
+            '${_isLocal(baseUrl) ? 'Check the OPENAI_API_KEY in backend/.env.' : 'Check OPENAI_API_KEY in the hosting dashboard.'}';
       }
       if (status == 404) {
         return 'That endpoint is missing on the server ($status). '
@@ -73,3 +86,16 @@ String? _detailFrom(dynamic data) {
   }
   return null;
 }
+
+
+bool _isLocal(String baseUrl) =>
+    baseUrl.contains('127.0.0.1') ||
+    baseUrl.contains('localhost') ||
+    baseUrl.contains('10.0.2.2');
+
+/// True when a browser build is pointing at the visitor's own machine, which
+/// only happens when the API url was never compiled in.
+///
+/// Not applied on Android: there, a local address is a legitimate setup -
+/// `adb reverse` makes the phone's localhost the developer's machine.
+bool _looksMisconfigured(String baseUrl) => kIsWeb && _isLocal(baseUrl);
