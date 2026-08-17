@@ -1,11 +1,11 @@
 {
-    "name": "pregnancy_ai_assistant",
-    "short_name": "pregnancy_ai_assistant",
+    "name": "Pregnancy & Baby Nutrition",
+    "short_name": "Pregnancy & Baby",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#6C5CE7",
+    "description": "Week-by-week pregnancy and baby nutrition guidance.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="pregnancy_ai_assistant"
+        android:label="Pregnancy &amp; Baby"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

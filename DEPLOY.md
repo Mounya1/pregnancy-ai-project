@@ -116,34 +116,66 @@ echo -n "sk-..." | gcloud secrets create openai-key --data-file=-
 
 ---
 
-## 2. App → web (Netlify / Vercel / GitHub Pages)
+## 2. App → Vercel (free, permanent, auto-deploys on push)
 
-The API URL is compiled in, so pass it at build time:
+Vercel has no Flutter runtime, so `vercel.json` at the repo root installs the
+SDK during the build. It is already written — you only set one variable.
+
+1. [vercel.com/new](https://vercel.com/new) → **Import** your GitHub repo.
+2. Leave every build setting on its default. Vercel reads `vercel.json`:
+   - installs Flutter stable into `/tmp/flutter`
+   - runs `flutter build web --release`
+   - serves `frontend/build/web`
+3. **Environment Variables** → add:
+
+   | Key | Value |
+   |---|---|
+   | `API_BASE_URL` | your Render URL, e.g. `https://pregnancy-ai-backend.onrender.com` |
+
+   Set it for **Production, Preview and Development** (tick all three).
+4. **Deploy.** First build takes 3-5 minutes because it clones the Flutter SDK;
+   later ones are faster.
+
+You get `https://<project>.vercel.app`, permanent and free on the Hobby plan.
+Every push to `main` redeploys automatically.
+
+**Then go back to Render** and set `ALLOWED_ORIGINS` to that exact origin
+(no trailing slash):
+
+```
+ALLOWED_ORIGINS=https://your-project.vercel.app
+```
+
+Leaving it as `*` lets any website on the internet spend your OpenAI credit.
+
+### If you would rather not wire up CI
+
+Build locally and upload the folder - no config, no SDK download:
 
 ```bash
 cd frontend
 flutter build web --release \
   --dart-define=API_BASE_URL=https://pregnancy-ai-backend.onrender.com
+npx vercel deploy build/web --prod
 ```
 
-Output is `frontend/build/web`. Drag that folder onto
-[netlify.com/drop](https://app.netlify.com/drop) for an instant permanent URL,
-or connect the repo with build command:
+### Two things that catch people out
 
-```
-flutter build web --release --dart-define=API_BASE_URL=$API_BASE_URL
-```
-publish directory `frontend/build/web`.
+**`API_BASE_URL` must be set before the build, not after.** Flutter compiles
+it in with `--dart-define`; there is no runtime config file to edit later. If
+you add the variable after deploying, hit **Redeploy** or the app will still
+be calling `127.0.0.1` and every request will fail.
 
-**Then go back to Render** and set `ALLOWED_ORIGINS` to that origin (e.g.
-`https://pregnancy-ai.netlify.app`). Leaving it as `*` means any website can
-spend your OpenAI budget.
+**A blank page usually means the rewrite.** `vercel.json` sends unmatched
+paths to `index.html` so a refresh on any route works. Vercel serves real
+files first, so assets are unaffected - but if you edit that block, check
+`/assets/…` still returns images and not HTML.
 
 ### What does not work on web
 
-Scheduled notifications. A browser cannot fire an alarm weeks from now
-without a push server, so weekly updates and reminders are an in-app schedule
-only. The app says so where it matters.
+Scheduled notifications. A browser cannot fire an alarm weeks from now without
+a push server, so weekly updates and reminders are an in-app schedule only.
+The app says so where it matters. Install the Android build for real alarms.
 
 ---
 
@@ -158,10 +190,15 @@ flutter build apk --release \
 Output: `build/app/outputs/flutter-apk/app-release.apk`. Send it to a phone
 and install it (Android will ask you to allow unknown sources).
 
+**Already done for you:** the app id is `com.mounya.pregnancyai` (not the
+`com.example.*` placeholder, which the Play Store rejects outright and which
+can never be changed after a first publish), the launcher name is
+"Pregnancy & Baby", and the web build is titled "Pregnancy & Baby Nutrition".
+
 ### Before the Play Store
 
-The release build currently signs with the **debug key**, which the Play
-Store rejects. To publish properly:
+The release build signs with the **debug key**. That is fine for an APK people
+sideload, but the Play Store rejects it. To publish properly:
 
 1. Create a keystore:
    ```bash

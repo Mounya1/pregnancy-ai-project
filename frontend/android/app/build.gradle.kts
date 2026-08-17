@@ -22,8 +22,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.pregnancy_ai_assistant"
+        // Permanent identity of this app on a device and in the Play Store.
+        // It can never be changed after the first publish, which is why the
+        // com.example.* placeholder had to go before any build was shared -
+        // the Play Store rejects it outright.
+        applicationId = "com.mounya.pregnancyai"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // flutter_local_notifications 22 requires API 24 as a floor.
@@ -35,8 +38,10 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // Debug keys, deliberately. That is enough to build an APK anyone
+            // can sideload, which is what this app needs today. Publishing to
+            // the Play Store needs a real upload key instead - the steps are
+            // in DEPLOY.md, and they need a keystore only the owner can make.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
