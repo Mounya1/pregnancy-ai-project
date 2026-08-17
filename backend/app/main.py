@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -42,4 +44,15 @@ app.include_router(nutrition.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    """Liveness plus the two things that make every request fail if wrong.
+
+    Neither field leaks anything: one is a boolean, the other a path check.
+    They exist because a 500 from /chat looks identical whether the API key
+    is missing or the knowledge base did not ship in the image, and reading
+    a deployment log is a slow way to tell those apart.
+    """
+    return {
+        "status": "ok",
+        "openai_key_configured": bool(settings.openai_api_key.strip()),
+        "vector_store_present": os.path.isdir(settings.vector_store_path),
+    }
