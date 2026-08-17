@@ -8,6 +8,13 @@ langchain-openai==0.2.1
 langchain-community==0.3.1
 faiss-cpu==1.8.0.post1
 openai==1.51.0
+# Pinned deliberately. openai 1.51 still passes `proxies=` to httpx, and
+# httpx 0.28 removed that argument - an unpinned install picks up the new one
+# and the app dies on import with:
+#   TypeError: Client.__init__() got an unexpected keyword argument 'proxies'
+# It only shows up in a clean build (Docker, CI), never on a machine that
+# already had an older httpx, which is what makes it easy to miss.
+httpx==0.27.2
 python-dotenv==1.0.1
 tiktoken==0.8.0
 pypdf==5.1.0
