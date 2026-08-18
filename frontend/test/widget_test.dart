@@ -257,6 +257,21 @@ void main() {
     expect(api['health_conditions'], ['gestational diabetes']);
   });
 
+  testWidgets('a general profile is never told it is pregnant', (tester) async {
+    await tester.pumpWidget(const PregnancyAiApp());
+    await _settleHome(tester);
+
+    // The default test profile is General - no due date, no baby.
+    expect(find.text('Eating well'), findsOneWidget);
+    expect(find.text('General nutrition'), findsOneWidget);
+
+    // Nothing on Home may claim a pregnancy that was never entered.
+    expect(find.text('Your pregnancy'), findsNothing);
+    expect(find.text('First trimester'), findsNothing);
+    expect(find.textContaining('until your due date'), findsNothing);
+    expect(find.textContaining('Week '), findsNothing);
+  });
+
   testWidgets('home shows a full-colour figure, not just a faint watermark',
       (tester) async {
     await tester.pumpWidget(const PregnancyAiApp());

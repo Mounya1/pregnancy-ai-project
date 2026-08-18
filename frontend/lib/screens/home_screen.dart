@@ -810,7 +810,14 @@ class _StageArtCard extends StatelessWidget {
 
   bool get _showBaby => profileHasBaby(profile);
 
+  /// General nutrition is its own stage, not "pregnancy without a due date".
+  /// Telling someone who chose General that this is "Your pregnancy" is both
+  /// wrong and, for anyone who is trying to conceive or has lost a pregnancy,
+  /// a genuinely unkind thing for an app to say.
+  bool get _isGeneral => profile.lifeStage == LifeStage.general;
+
   String get _title {
+    if (_isGeneral) return 'Eating well';
     if (!_showBaby) {
       final week = profile.pregnancyWeek;
       return week == null ? 'Your pregnancy' : trimesterLabel(week);
@@ -820,6 +827,9 @@ class _StageArtCard extends StatelessWidget {
   }
 
   String get _body {
+    if (_isGeneral) {
+      return 'Everyday nutrition guidance, grounded in the same trusted sources.';
+    }
     if (!_showBaby) {
       final week = profile.pregnancyWeek;
       if (week == null) return 'Add your due date to see how your week is going.';
