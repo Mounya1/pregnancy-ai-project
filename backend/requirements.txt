@@ -18,3 +18,7 @@ httpx==0.27.2
 python-dotenv==1.0.1
 tiktoken==0.8.0
 pypdf==5.1.0
+# Cloud sync. Pinned like everything else here - an unpinned transitive dep is
+# what took the first Render deploy down.
+boto3==1.35.36
+PyJWT[crypto]==2.9.0

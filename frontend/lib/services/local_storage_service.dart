@@ -40,6 +40,24 @@ class LocalStorageService {
 
   Future<SharedPreferences> get _prefs async => SharedPreferences.getInstance();
 
+  /// Decodes a stored list, dropping rows that will not parse.
+  ///
+  /// One malformed entry used to take the whole collection with it - the food
+  /// log would come back empty rather than missing a single row. That became
+  /// a real risk once documents can arrive from a server, possibly written by
+  /// a different version of the app.
+  static List<T> _decodeList<T>(List<String> raw, T Function(Map<String, dynamic>) parse) {
+    final out = <T>[];
+    for (final entry in raw) {
+      try {
+        out.add(parse(jsonDecode(entry) as Map<String, dynamic>));
+      } catch (_) {
+        continue;
+      }
+    }
+    return out;
+  }
+
   // ---- Account ----
   //
   // One account per device. The record holds a PBKDF2 hash, never the
@@ -140,7 +158,7 @@ class LocalStorageService {
   Future<List<SavedFood>> loadSavedFoods() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_savedFoodsKey) ?? [];
-    return raw.map((s) => SavedFood.fromJson(jsonDecode(s))).toList()
+    return _decodeList(raw, SavedFood.fromJson)
       ..sort((a, b) => b.savedAt.compareTo(a.savedAt));
   }
 
@@ -163,7 +181,7 @@ class LocalStorageService {
   Future<List<HistoryEntry>> loadHistory() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_historyKey) ?? [];
-    return raw.map((s) => HistoryEntry.fromJson(jsonDecode(s))).toList()
+    return _decodeList(raw, HistoryEntry.fromJson)
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
   }
 
@@ -186,7 +204,7 @@ class LocalStorageService {
   Future<List<NutritionEntry>> loadNutritionEntries() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_nutritionKey) ?? [];
-    return raw.map((s) => NutritionEntry.fromJson(jsonDecode(s))).toList();
+    return _decodeList(raw, NutritionEntry.fromJson);
   }
 
   Future<void> logNutritionEntry(NutritionEntry entry) async {
@@ -234,7 +252,7 @@ class LocalStorageService {
   Future<List<Reminder>> loadReminders() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_remindersKey) ?? [];
-    return raw.map((s) => Reminder.fromJson(jsonDecode(s))).toList()
+    return _decodeList(raw, Reminder.fromJson)
       ..sort((a, b) => (a.hour * 60 + a.minute).compareTo(b.hour * 60 + b.minute));
   }
 
@@ -265,7 +283,7 @@ class LocalStorageService {
   Future<List<DoctorNote>> loadDoctorNotes() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_notesKey) ?? [];
-    return raw.map((s) => DoctorNote.fromJson(jsonDecode(s))).toList();
+    return _decodeList(raw, DoctorNote.fromJson);
   }
 
   Future<void> saveDoctorNotes(List<DoctorNote> notes) async {
@@ -293,7 +311,7 @@ class LocalStorageService {
   Future<List<EmergencyContact>> loadEmergencyContacts() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_contactsKey) ?? [];
-    return raw.map((s) => EmergencyContact.fromJson(jsonDecode(s))).toList();
+    return _decodeList(raw, EmergencyContact.fromJson);
   }
 
   Future<void> saveEmergencyContacts(List<EmergencyContact> contacts) async {
@@ -333,7 +351,7 @@ class LocalStorageService {
   Future<List<MedicalReport>> loadMedicalReports() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_reportsKey) ?? [];
-    return raw.map((s) => MedicalReport.fromJson(jsonDecode(s))).toList()
+    return _decodeList(raw, MedicalReport.fromJson)
       ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
   }
 
@@ -356,7 +374,7 @@ class LocalStorageService {
   Future<List<BabyRecord>> loadBabyRecords() async {
     final prefs = await _prefs;
     final raw = prefs.getStringList(_babyKey) ?? [];
-    return raw.map((s) => BabyRecord.fromJson(jsonDecode(s))).toList()
+    return _decodeList(raw, BabyRecord.fromJson)
       ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
   }
 
@@ -372,6 +390,80 @@ class LocalStorageService {
     final raw = prefs.getStringList(_babyKey) ?? [];
     raw.removeWhere((s) => (jsonDecode(s) as Map<String, dynamic>)['id'] == id);
     await prefs.setStringList(_babyKey, raw);
+  }
+
+  // ---- Sync ----
+
+  /// Keys that must never leave this device.
+  ///
+  /// Session tokens identify *this* device's login - copying them to another
+  /// device would share a session rather than sync data. Theme is a per-device
+  /// preference, not something to force on your other phone.
+  static const _neverSync = {
+    _accountKey,
+    _sessionKey,
+    _tokensKey,
+    _pendingEmailKey,
+    _themeModeKey,
+  };
+
+  /// Every syncable key, as one JSON-safe map.
+  ///
+  /// Values are stored as either a String or a List<String>, so both shapes
+  /// are preserved rather than flattened - restoring a list as a string would
+  /// silently empty the food log.
+  Future<Map<String, dynamic>> exportAll() async {
+    final prefs = await _prefs;
+    final out = <String, dynamic>{};
+
+    for (final key in prefs.getKeys()) {
+      if (_neverSync.contains(key)) continue;
+      final value = prefs.get(key);
+      if (value is String) {
+        out[key] = {'type': 'string', 'value': value};
+      } else if (value is List<String>) {
+        out[key] = {'type': 'list', 'value': value};
+      } else if (value is bool) {
+        out[key] = {'type': 'bool', 'value': value};
+      } else if (value is int) {
+        out[key] = {'type': 'int', 'value': value};
+      } else if (value is double) {
+        out[key] = {'type': 'double', 'value': value};
+      }
+    }
+    return out;
+  }
+
+  /// Replaces the syncable keys with [data].
+  ///
+  /// Only touches keys present in the incoming document, and never the
+  /// never-sync set - so restoring on a second device cannot sign you out or
+  /// change that device's theme.
+  Future<void> importAll(Map<String, dynamic> data) async {
+    final prefs = await _prefs;
+
+    for (final entry in data.entries) {
+      if (_neverSync.contains(entry.key)) continue;
+      final wrapped = entry.value;
+      if (wrapped is! Map) continue;
+
+      final value = wrapped['value'];
+      switch (wrapped['type']) {
+        case 'string':
+          await prefs.setString(entry.key, value as String);
+        case 'list':
+          await prefs.setStringList(
+            entry.key,
+            (value as List).map((e) => e.toString()).toList(),
+          );
+        case 'bool':
+          await prefs.setBool(entry.key, value as bool);
+        case 'int':
+          await prefs.setInt(entry.key, (value as num).toInt());
+        case 'double':
+          await prefs.setDouble(entry.key, (value as num).toDouble());
+      }
+    }
   }
 
   // ---- Reset ----

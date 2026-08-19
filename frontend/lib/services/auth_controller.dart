@@ -331,6 +331,17 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A valid access token, refreshing it first if it is close to expiry.
+  ///
+  /// Returns an empty string on a device-only build or when signed out, which
+  /// callers treat as "sync unavailable" rather than an error.
+  Future<String> accessToken() async {
+    if (!isCloud) return '';
+    if (_tokens == null) return '';
+    if (_tokens!.isExpired) await _tryRefresh();
+    return _tokens?.accessToken ?? '';
+  }
+
   // ---- Cloud (Cognito) ----
 
   Future<String?> _cloudSignUp({

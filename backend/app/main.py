@@ -16,6 +16,7 @@ from app.routers import (
     medical_report,
     fitness,
     nutrition,
+    sync,
 )
 
 app = FastAPI(
@@ -42,6 +43,7 @@ app.include_router(meal_plan.router)
 app.include_router(medical_report.router)
 app.include_router(fitness.router)
 app.include_router(nutrition.router)
+app.include_router(sync.router)
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -98,4 +100,5 @@ def health():
         "openai_key_prefix": settings.openai_api_key[:7] or None,
         "openai_key_length": len(settings.openai_api_key),
         "vector_store_present": os.path.isdir(settings.vector_store_path),
+        "sync_enabled": bool(settings.dynamodb_table and settings.cognito_user_pool_id),
     }

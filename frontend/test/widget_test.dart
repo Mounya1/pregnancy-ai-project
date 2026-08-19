@@ -1446,6 +1446,66 @@ void main() {
     expect(almost.isExpired, isTrue);
   });
 
+  test('export skips credentials and preserves value types', () async {
+    SharedPreferences.setMockInitialValues({
+      ...(_signedInPrefs()),
+      'flutter.cognito_tokens': '{"access_token":"secret"}',
+      'flutter.pending_confirmation_email': 'a@b.co',
+      'flutter.theme_mode': 'dark',
+      'flutter.nutrition_entries': <String>[
+        '{"id":"1","food_name":"Tofu (1/2 cup)","servings":1}',
+        '{"id":"2","food_name":"poha","servings":2}',
+      ],
+      'flutter.care_done': <String>['t1_folic'],
+      'flutter.shopping_region': 'IN',
+    });
+    final storage = LocalStorageService();
+    final exported = await storage.exportAll();
+
+    // Credentials and per-device preferences must never travel.
+    expect(exported.containsKey('cognito_tokens'), isFalse);
+    expect(exported.containsKey('session_active'), isFalse);
+    expect(exported.containsKey('pending_confirmation_email'), isFalse);
+    expect(exported.containsKey('account'), isFalse);
+    expect(exported.containsKey('theme_mode'), isFalse);
+
+    // Data does, with its shape intact - a list flattened to a string would
+    // silently empty the food log on restore.
+    expect(exported['nutrition_entries']['type'], 'list');
+    expect((exported['nutrition_entries']['value'] as List).length, 2);
+    expect(exported['shopping_region'], {'type': 'string', 'value': 'IN'});
+
+    // And it round-trips onto a clean device.
+    SharedPreferences.setMockInitialValues({});
+    final fresh = LocalStorageService();
+    await fresh.importAll(exported);
+    expect((await fresh.loadNutritionEntries()).length, 2);
+    expect(await fresh.loadShoppingRegion(), 'IN');
+    expect((await fresh.loadCareDone()), ['t1_folic']);
+
+    // Import must not be able to sign you in as someone else.
+    expect(await fresh.loadAccount(), isNull);
+    expect(await fresh.loadCognitoTokens(), isNull);
+  });
+
+  test('import refuses to restore credentials even if the document has them',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = LocalStorageService();
+
+    // A tampered or stale document naming the protected keys directly.
+    await storage.importAll({
+      'cognito_tokens': {'type': 'string', 'value': '{"access_token":"stolen"}'},
+      'session_active': {'type': 'bool', 'value': true},
+      'shopping_region': {'type': 'string', 'value': 'GB'},
+    });
+
+    expect(await storage.loadCognitoTokens(), isNull);
+    expect(await storage.loadSessionActive(), isFalse);
+    // The legitimate key still lands.
+    expect(await storage.loadShoppingRegion(), 'GB');
+  });
+
   // ---- Device-only account ----
 
   testWidgets('a device with no account opens on sign-up, not on Home', (tester) async {
@@ -1565,6 +1625,9 @@ void main() {
     expect(find.text('Priya Sharma'), findsOneWidget);
     expect(find.text('priya@example.com'), findsOneWidget);
 
+    // The sync card sits above the session section now.
+    await tester.scrollUntilVisible(find.text('Sign out'), 300);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Sign out'));
     await tester.pumpAndSettle();
     // Confirm in the dialog - the tile and the dialog button share a label.

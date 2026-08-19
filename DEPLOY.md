@@ -237,6 +237,73 @@ much bigger piece of work than authentication.
 
 ---
 
+## 2c. Syncing history across devices (optional)
+
+Cognito gives you the same *account* everywhere. This gives you the same
+*data*. It needs a table; identity alone cannot store anything.
+
+### Create the table
+
+AWS Console → **DynamoDB** → **Create table**
+
+| Field | Value |
+|---|---|
+| Table name | `pregnancy-ai-sync` |
+| Partition key | `user_id` (String) |
+| Settings | Default (on-demand) |
+
+Free tier is 25GB and does not expire. Items are encrypted at rest by default,
+which matters - this is medical data.
+
+### Create an access key for the backend
+
+IAM → **Users** → create one, e.g. `pregnancy-ai-backend`, with an inline
+policy scoped to that one table:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
+    "Resource": "arn:aws:dynamodb:*:*:table/pregnancy-ai-sync"
+  }]
+}
+```
+
+Three actions on one table - not `dynamodb:*` on `*`. If the key leaks, that
+is the difference between one table and your whole account.
+
+### Set it on Render
+
+| Key | Value |
+|---|---|
+| `COGNITO_REGION` | e.g. `us-east-1` |
+| `COGNITO_USER_POOL_ID` | from Cognito |
+| `COGNITO_CLIENT_ID` | your app client id |
+| `DYNAMODB_TABLE` | `pregnancy-ai-sync` |
+| `AWS_ACCESS_KEY_ID` | from IAM |
+| `AWS_SECRET_ACCESS_KEY` | from IAM |
+
+`/health` reports `"sync_enabled": true` once all of it is in place.
+
+### How it behaves
+
+**Me → Account → Sync across devices**, with two explicit buttons:
+
+- **Back up now** - this device replaces the copy on your account
+- **Restore** - your account replaces what is on this device
+
+Two buttons rather than silent background sync, on purpose. One document per
+user means the last write wins, and a background job that quietly overwrote a
+week of entries logged on another phone is worse than being asked which
+direction you meant.
+
+Session tokens, the account record and the theme are never uploaded - a
+backup restores your data, not someone else's login.
+
+---
+
 ## 3. App → Android APK
 
 ```bash

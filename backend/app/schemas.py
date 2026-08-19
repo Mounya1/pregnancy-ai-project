@@ -81,6 +81,25 @@ class VoiceResponse(BaseModel):
     audio_url: str
 
 
+class SyncPullResponse(BaseModel):
+    """The stored document, or null when this user has never synced.
+
+    null and {} mean different things to the client: "nothing saved yet, keep
+    what is on this device" versus "saved, and it really was empty".
+    """
+
+    data: Optional[dict] = None
+    updated_at: Optional[str] = None
+
+
+class SyncPushRequest(BaseModel):
+    data: dict
+
+
+class SyncPushResponse(BaseModel):
+    updated_at: str
+
+
 class NutrientEstimate(BaseModel):
     """Per-serving amounts for the five nutrients the tracker follows.
 

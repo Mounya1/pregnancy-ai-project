@@ -37,6 +37,19 @@ class Settings(BaseSettings):
     # inference budget.
     allowed_origins: str = "*"
 
+    # ---- Cloud sync (optional) ----
+    #
+    # Empty means sync is switched off and the endpoints answer 501. The app
+    # falls back to device-only storage, which is the default everywhere.
+    cognito_region: str = ""
+    cognito_user_pool_id: str = ""
+    cognito_client_id: str = ""
+
+    dynamodb_table: str = ""
+    aws_region: str = ""
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../services/auth_controller.dart';
+import '../../services/sync_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ui/app_card.dart';
 import '../../widgets/ui/empty_state.dart';
@@ -123,6 +124,12 @@ class AccountScreen extends StatelessWidget {
             subtitle: 'Used to unlock this app',
             onTap: () => _changePassword(context),
           ),
+          const SizedBox(height: AppSpacing.xl),
+          const SectionHeader(
+            title: 'Your data',
+            subtitle: 'Keep your history on more than one device',
+          ),
+          const _SyncCard(),
           const SizedBox(height: AppSpacing.xl),
           const SectionHeader(
             title: 'Session',
@@ -430,5 +437,140 @@ class _Tile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+
+/// Backup and restore across devices.
+///
+/// Deliberately two explicit buttons rather than silent background sync. With
+/// one document per user, the last write wins - and a background job that
+/// quietly overwrote a week of entries logged on another phone would be far
+/// worse than asking which direction you meant.
+class _SyncCard extends StatelessWidget {
+  const _SyncCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final sync = context.watch<SyncController>();
+    final auth = context.watch<AuthController>();
+
+    if (!auth.isCloud) {
+      return AppCard(
+        color: p.surfaceAlt,
+        borderColor: Colors.transparent,
+        shadow: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.phonelink_lock_rounded, size: 17, color: p.textMuted),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Text(
+                'This build keeps everything on this device only. There is no '
+                'server copy of your history to restore from.',
+                style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textSecondary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final busy = sync.state == SyncState.syncing;
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cloud_sync_rounded, size: 18, color: p.brand),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text('Sync across devices', style: context.texts.titleSmall),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Your profile, food log, doctor notes and records - stored against '
+            'your account so another device can pick them up.',
+            style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textMuted),
+          ),
+          if (sync.message != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              sync.message!,
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                color: sync.state == SyncState.failed ? p.avoid : p.safe,
+              ),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              Expanded(
+                child: GradientButton(
+                  label: busy ? 'Working...' : 'Back up now',
+                  icon: Icons.cloud_upload_rounded,
+                  loading: busy,
+                  onPressed: busy ? null : () => context.read<SyncController>().push(),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SoftButton(
+                label: 'Restore',
+                icon: Icons.cloud_download_rounded,
+                onPressed: busy ? null : () => _confirmRestore(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Backing up replaces the copy on your account. Restoring replaces '
+            'what is on this device. Whichever you did last is what you keep.',
+            style: TextStyle(fontSize: 10.5, height: 1.4, color: p.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmRestore(BuildContext context) async {
+    final sync = context.read<SyncController>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Restore from your account?'),
+        content: const Text(
+          'This replaces the profile, food log, notes and records on this '
+          'device with the copy saved to your account.\n\n'
+          'Anything logged here since your last back-up will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Restore'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    final restored = await sync.pull();
+    if (restored && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Restored. Restart the app to see everything.')),
+      );
+    }
   }
 }

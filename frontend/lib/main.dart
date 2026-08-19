@@ -13,6 +13,7 @@ import 'services/nutrition_controller.dart';
 import 'services/profile_controller.dart';
 import 'services/reminder_controller.dart';
 import 'services/shopping_controller.dart';
+import 'services/sync_controller.dart';
 import 'services/theme_controller.dart';
 import 'theme/app_theme.dart';
 import 'theme/brand_flavor.dart';
@@ -42,6 +43,15 @@ class PregnancyAiApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NutritionController(storage)..load()),
         ChangeNotifierProvider(create: (_) => EmergencyController(storage)..load()),
         ChangeNotifierProvider(create: (_) => CareController(storage)..load()),
+        // Sync depends on who is signed in, so it is built from the auth
+        // controller rather than beside it.
+        ChangeNotifierProxyProvider<AuthController, SyncController>(
+          create: (context) => SyncController(
+            storage,
+            Provider.of<AuthController>(context, listen: false),
+          ),
+          update: (_, auth, previous) => previous ?? SyncController(storage, auth),
+        ),
         // Weekly updates are derived from the due date / birth date, so the
         // schedule has to be rebuilt whenever the profile changes - not only
         // when the toggle is touched.
