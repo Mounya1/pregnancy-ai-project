@@ -22,6 +22,7 @@ import 'package:pregnancy_ai_assistant/models/weekly_stats.dart';
 import 'package:pregnancy_ai_assistant/models/account.dart';
 import 'package:pregnancy_ai_assistant/services/auth_controller.dart';
 import 'package:pregnancy_ai_assistant/services/care_controller.dart';
+import 'package:pregnancy_ai_assistant/services/cognito_client.dart';
 import 'package:pregnancy_ai_assistant/services/emergency_controller.dart';
 import 'package:pregnancy_ai_assistant/services/local_storage_service.dart';
 import 'package:pregnancy_ai_assistant/services/milestone_controller.dart';
@@ -1364,6 +1365,85 @@ void main() {
     expect(babyMonthInfo(6).feeding.toLowerCase(), contains('iron'));
     // Out of range still returns something rather than throwing.
     expect(babyMonthInfo(99).month, 24);
+  });
+
+  // ---- Cloud accounts (AWS Cognito) ----
+
+  test('cloud mode is off unless the build was given a pool', () {
+    // A fresh clone and local development must work with no AWS at all.
+    expect(CognitoClient.isConfigured, isFalse);
+    expect(AuthController(LocalStorageService()).isCloud, isFalse);
+  });
+
+  test('cloud password rules match what Cognito will enforce', () {
+    // Checked on the client so the person is told while they are typing,
+    // rather than after a round trip that returns a generic refusal.
+    expect(AuthController.validateCloudPassword('short1A'), isNotNull);
+    expect(AuthController.validateCloudPassword('alllowercase1'), contains('uppercase'));
+    expect(AuthController.validateCloudPassword('ALLUPPERCASE1'), contains('lowercase'));
+    expect(AuthController.validateCloudPassword('NoDigitsHere'), contains('number'));
+    expect(AuthController.validateCloudPassword('Sunflower7'), isNull);
+
+    // Email is optional on a device account and required in the cloud.
+    expect(AuthController.validateEmail(''), isNull);
+    expect(AuthController.validateRequiredEmail(''), isNotNull);
+    expect(AuthController.validateRequiredEmail('not-an-email'), isNotNull);
+    expect(AuthController.validateRequiredEmail('a@b.co'), isNull);
+  });
+
+  test('cognito errors become messages a person can act on', () {
+    CognitoException parse(String type, [String message = '']) =>
+        CognitoException.fromResponse({'__type': type, 'message': message});
+
+    // A namespaced type still resolves.
+    expect(parse('#UserNotConfirmedException').needsConfirmation, isTrue);
+    expect(parse('UsernameExistsException').userExists, isTrue);
+
+    // Wrong password and unknown email must read identically - saying which
+    // is which tells a stranger whose email has an account here.
+    expect(
+      parse('NotAuthorizedException').message,
+      parse('UserNotFoundException').message,
+    );
+
+    expect(parse('CodeMismatchException').message.toLowerCase(), contains('code'));
+    expect(parse('ExpiredCodeException').message.toLowerCase(), contains('expired'));
+    expect(parse('LimitExceededException').message.toLowerCase(), contains('too many'));
+
+    // An unmapped type falls back to whatever Cognito said rather than a
+    // blank message.
+    expect(parse('SomeNewException', 'Details here').message, 'Details here');
+  });
+
+  test('cognito tokens round-trip and expire a minute early', () {
+    final tokens = CognitoTokens.fromAuthResult({
+      'AccessToken': 'a',
+      'IdToken': 'i',
+      'RefreshToken': 'r',
+      'ExpiresIn': 3600,
+    });
+    expect(tokens.isExpired, isFalse);
+
+    final restored = CognitoTokens.fromJson(tokens.toJson());
+    expect(restored.accessToken, 'a');
+    expect(restored.refreshToken, 'r');
+
+    // A refresh response carries no refresh token; the old one stays valid.
+    final refreshed = CognitoTokens.fromAuthResult(
+      {'AccessToken': 'a2', 'IdToken': 'i2', 'ExpiresIn': 3600},
+      fallbackRefreshToken: 'r',
+    );
+    expect(refreshed.refreshToken, 'r');
+
+    // Anything inside the last minute counts as expired, so a token never
+    // leaves on a request that outlives it.
+    final almost = CognitoTokens(
+      accessToken: 'a',
+      idToken: 'i',
+      refreshToken: 'r',
+      expiresAt: DateTime.now().add(const Duration(seconds: 30)),
+    );
+    expect(almost.isExpired, isTrue);
   });
 
   // ---- Device-only account ----

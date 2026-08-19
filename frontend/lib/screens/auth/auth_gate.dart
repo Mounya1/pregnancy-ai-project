@@ -5,6 +5,7 @@ import '../../services/auth_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ui/illustrations.dart';
 import '../home_screen.dart';
+import 'confirm_screen.dart';
 import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
 
@@ -29,6 +30,8 @@ class AuthGate extends StatelessWidget {
         screen = const SignUpScreen(key: ValueKey('sign-up'));
       case AuthStatus.needsSignIn:
         screen = const SignInScreen(key: ValueKey('sign-in'));
+      case AuthStatus.needsConfirmation:
+        screen = const ConfirmScreen(key: ValueKey('confirm'));
       case AuthStatus.signedIn:
         screen = HomeScreen(
           key: const ValueKey('home'),

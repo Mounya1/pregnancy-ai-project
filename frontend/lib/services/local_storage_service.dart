@@ -19,6 +19,8 @@ import '../models/user_profile.dart';
 class LocalStorageService {
   static const _accountKey = 'account';
   static const _sessionKey = 'session_active';
+  static const _tokensKey = 'cognito_tokens';
+  static const _pendingEmailKey = 'pending_confirmation_email';
   static const _profileKey = 'user_profile';
   static const _savedFoodsKey = 'saved_foods';
   static const _historyKey = 'history_entries';
@@ -64,6 +66,45 @@ class LocalStorageService {
   Future<void> saveSessionActive(bool active) async {
     final prefs = await _prefs;
     await prefs.setBool(_sessionKey, active);
+  }
+
+  // ---- Cloud session (AWS Cognito) ----
+  //
+  // Tokens, not a password. The refresh token is the sensitive one - it is
+  // what keeps someone signed in - and it lives in the same local store as
+  // everything else, which is device-level protection, not secret-grade.
+
+  Future<Map<String, dynamic>?> loadCognitoTokens() async {
+    final prefs = await _prefs;
+    final raw = prefs.getString(_tokensKey);
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<void> saveCognitoTokens(Map<String, dynamic>? tokens) async {
+    final prefs = await _prefs;
+    if (tokens == null) {
+      await prefs.remove(_tokensKey);
+    } else {
+      await prefs.setString(_tokensKey, jsonEncode(tokens));
+    }
+  }
+
+  /// The address waiting on a confirmation code, so closing the app mid
+  /// sign-up does not strand the account in an unconfirmed state with no way
+  /// back to the code screen.
+  Future<String?> loadPendingEmail() async {
+    final prefs = await _prefs;
+    return prefs.getString(_pendingEmailKey);
+  }
+
+  Future<void> savePendingEmail(String? email) async {
+    final prefs = await _prefs;
+    if (email == null) {
+      await prefs.remove(_pendingEmailKey);
+    } else {
+      await prefs.setString(_pendingEmailKey, email);
+    }
   }
 
   // ---- Appearance ----

@@ -41,9 +41,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     // Validate everything at once so the form doesn't reveal problems one at
     // a time.
+    final cloud = auth.isCloud;
     final nameError = AuthController.validateName(_name.text);
-    final emailError = AuthController.validateEmail(_email.text);
-    final passwordError = AuthController.validatePassword(_password.text);
+    final emailError = cloud
+        ? AuthController.validateRequiredEmail(_email.text)
+        : AuthController.validateEmail(_email.text);
+    final passwordError = cloud
+        ? AuthController.validateCloudPassword(_password.text)
+        : AuthController.validatePassword(_password.text);
     final confirmError =
         _confirm.text == _password.text ? null : 'Passwords do not match';
 
@@ -91,7 +96,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SizedBox(height: AppSpacing.lg),
         AuthField(
           controller: _email,
-          label: 'Email (optional)',
+          label: context.watch<AuthController>().isCloud ? 'Email' : 'Email (optional)',
           hint: 'you@example.com',
           icon: Icons.mail_outline_rounded,
           keyboardType: TextInputType.emailAddress,
@@ -103,7 +108,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         AuthField(
           controller: _password,
           label: 'Password',
-          hint: 'At least 6 characters',
+          hint: context.watch<AuthController>().isCloud
+              ? '8+ characters, upper and lower case, and a number'
+              : 'At least 6 characters',
           icon: Icons.lock_outline_rounded,
           obscure: true,
           textInputAction: TextInputAction.next,
@@ -142,8 +149,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'There is no password reset. With no server, nobody can verify '
-                  'it is you - so keep this password somewhere safe.',
+                  context.watch<AuthController>().isCloud
+                      ? 'We will email you a code to confirm this address. Your '
+                          'health data stays on this device - the account is only '
+                          'used to sign you in.'
+                      : 'There is no password reset. With no server, nobody can '
+                          'verify it is you - so keep this password somewhere safe.',
                   style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textSecondary),
                 ),
               ),

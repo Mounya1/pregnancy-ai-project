@@ -179,6 +179,64 @@ The app says so where it matters. Install the Android build for real alarms.
 
 ---
 
+## 2b. Real accounts with AWS Cognito (optional)
+
+Without this, accounts are **device-only**: stored on the phone, no password
+reset, no shared login across devices. That is the default and needs no AWS.
+
+With Cognito you get real sign-up, email confirmation, password reset, and the
+same login on any device. **Health data still never leaves the device** -
+Cognito holds identity only.
+
+### Create the user pool
+
+1. AWS Console → **Cognito** → **Create user pool**
+2. Sign-in options: tick **Email**
+3. Password policy: Cognito default (8+, upper, lower, number) - the app
+   checks the same rules before it sends anything
+4. MFA: **No MFA** (you can add it later)
+5. Self-registration: **Enabled**
+6. Attributes to verify: **email**. Required attributes: **name**
+7. Email provider: **Send email with Cognito** (50/day free - fine for a demo;
+   use SES for anything real)
+8. App client:
+   - Type: **Public client**
+   - **Do not generate a client secret** - a secret would have to ship inside
+     the app to be usable, which defeats the point of having one
+   - Auth flows: tick **ALLOW_USER_PASSWORD_AUTH** and
+     **ALLOW_REFRESH_TOKEN_AUTH**
+9. Create, then copy the **User pool ID** and **App client ID**
+
+### Point the app at it
+
+Build with two extra defines:
+
+```bash
+flutter build web --release \
+  --dart-define=API_BASE_URL=https://your-backend.onrender.com \
+  --dart-define=COGNITO_REGION=us-east-1 \
+  --dart-define=COGNITO_CLIENT_ID=your_app_client_id
+```
+
+On **Vercel**, add them as environment variables and extend the build command
+in `vercel.json` to pass them through.
+
+Leave them out and the app silently stays device-only - which is what local
+development and a fresh clone should get.
+
+### Cost
+
+Cognito's free tier covers 10,000 monthly active users, permanently. A
+portfolio app will not come close.
+
+### What this does not do
+
+It does not sync your data. Sign in on a second device and you get your
+account, not your food log - that needs a database and an API, which is a
+much bigger piece of work than authentication.
+
+---
+
 ## 3. App → Android APK
 
 ```bash

@@ -5,6 +5,7 @@ import '../../services/auth_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ui/gradient_button.dart';
 import 'auth_shell.dart';
+import 'forgot_password_screen.dart';
 
 /// The unlock screen. An account already exists on this device, so the only
 /// question is the password.
@@ -17,17 +18,28 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   final _password = TextEditingController();
+  final _email = TextEditingController();
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Set here rather than as a `late final` with a context lookup: a lazy
+    // initialiser can first run inside dispose(), and reading an inherited
+    // widget from a deactivated element throws.
+    _email.text = context.read<AuthController>().account?.email ?? '';
+  }
 
   @override
   void dispose() {
     _password.dispose();
+    _email.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final auth = context.read<AuthController>();
-    final failure = await auth.signIn(_password.text);
+    final failure = await auth.signIn(_password.text, email: _email.text);
     if (!mounted) return;
     setState(() => _error = failure);
     if (failure == null) _password.clear();
@@ -78,6 +90,21 @@ class _SignInScreenState extends State<SignInScreen> {
       subtitle: 'Enter your password to unlock your plans and records.',
       showBabyFigure: true,
       children: [
+        // Cloud accounts are keyed on email, and the same login works on any
+        // device - so the address has to be editable, not assumed from
+        // whatever this phone happens to remember.
+        if (auth.isCloud) ...[
+          AuthField(
+            controller: _email,
+            label: 'Email',
+            hint: 'you@example.com',
+            icon: Icons.mail_outline_rounded,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.username],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         AuthField(
           controller: _password,
           label: 'Password',
@@ -98,7 +125,20 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         TextButton(
-          onPressed: auth.busy ? null : _forgotPassword,
+          onPressed: auth.busy
+              ? null
+              : () {
+                  if (auth.isCloud) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ForgotPasswordScreen(initialEmail: _email.text),
+                      ),
+                    );
+                  } else {
+                    _forgotPassword();
+                  }
+                },
           style: TextButton.styleFrom(foregroundColor: p.textSecondary),
           child: const Text('Forgot password?', style: TextStyle(fontSize: 12.5)),
         ),
