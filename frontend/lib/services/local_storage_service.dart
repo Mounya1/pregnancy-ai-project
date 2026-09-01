@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/account.dart';
 import '../models/baby_record.dart';
+import '../models/contraction.dart';
 import '../models/doctor_note.dart';
 import '../models/emergency_contact.dart';
 import '../models/history_entry.dart';
+import '../models/kick_session.dart';
 import '../models/medical_report.dart';
 import '../models/nutrition_log.dart';
 import '../models/reminder.dart';
@@ -37,6 +39,8 @@ class LocalStorageService {
   static const _reportsKey = 'medical_reports';
   static const _babyKey = 'baby_records';
   static const _fitnessPlanKey = 'last_fitness_plan';
+  static const _kicksKey = 'kick_sessions';
+  static const _contractionsKey = 'contractions';
 
   Future<SharedPreferences> get _prefs async => SharedPreferences.getInstance();
 
@@ -390,6 +394,47 @@ class LocalStorageService {
     final raw = prefs.getStringList(_babyKey) ?? [];
     raw.removeWhere((s) => (jsonDecode(s) as Map<String, dynamic>)['id'] == id);
     await prefs.setStringList(_babyKey, raw);
+  }
+
+  // ---- Kick counts ----
+
+  Future<List<KickSession>> loadKickSessions() async {
+    final prefs = await _prefs;
+    final raw = prefs.getStringList(_kicksKey) ?? [];
+    return _decodeList(raw, KickSession.fromJson)
+      ..sort((a, b) => a.startedAt.compareTo(b.startedAt));
+  }
+
+  /// Writes the whole list rather than appending.
+  ///
+  /// A kick session is edited repeatedly while it is open - every tap adds a
+  /// timestamp to the same record - so append-then-dedupe would leave ten
+  /// copies of one session behind.
+  Future<void> saveKickSessions(List<KickSession> sessions) async {
+    final prefs = await _prefs;
+    await prefs.setStringList(
+      _kicksKey,
+      sessions.map((s) => jsonEncode(s.toJson())).toList(),
+    );
+  }
+
+  // ---- Contractions ----
+
+  Future<List<Contraction>> loadContractions() async {
+    final prefs = await _prefs;
+    final raw = prefs.getStringList(_contractionsKey) ?? [];
+    return _decodeList(raw, Contraction.fromJson)
+      ..sort((a, b) => a.startedAt.compareTo(b.startedAt));
+  }
+
+  /// Same reasoning as [saveKickSessions]: a contraction is written once when
+  /// it starts and rewritten when it ends.
+  Future<void> saveContractions(List<Contraction> contractions) async {
+    final prefs = await _prefs;
+    await prefs.setStringList(
+      _contractionsKey,
+      contractions.map((c) => jsonEncode(c.toJson())).toList(),
+    );
   }
 
   // ---- Sync ----

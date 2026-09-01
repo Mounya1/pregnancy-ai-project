@@ -18,6 +18,8 @@ import '../widgets/ui/reveal.dart';
 import '../widgets/ui/verdict_chip.dart';
 import 'baby_screen.dart';
 import 'chat_screen.dart';
+import 'contraction_timer_screen.dart';
+import 'kick_counter_screen.dart';
 import 'me_screen.dart';
 import 'nutrition_tracker_screen.dart';
 import 'plan_screen.dart';
@@ -211,6 +213,17 @@ class _HomeTabState extends State<_HomeTab> {
                 const SizedBox(height: AppSpacing.xxl),
                 Reveal.stagger(index: 3, child: _StageArtCard(profile: profile)),
                 const SizedBox(height: AppSpacing.xxl),
+                if (_showsLabourTools(profile)) ...[
+                  Reveal.stagger(
+                    index: 3,
+                    child: _LabourToolsCard(
+                      onKickCounter: () => _push(const KickCounterScreen()),
+                      onContractionTimer: () =>
+                          _push(const ContractionTimerScreen()),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                ],
                 Reveal.stagger(index: 3, child: _InsightCard(profile: profile)),
                 const SizedBox(height: AppSpacing.xxl),
                 if (nextReminder != null) ...[
@@ -1149,6 +1162,106 @@ class _RecentTile extends StatelessWidget {
 ///
 /// These are shortcuts, not decoration - every tile goes somewhere, which is
 /// the only reason a photo earns space on a screen this busy.
+/// Third-trimester tools are only offered once they are any use.
+///
+/// A kick count means nothing before movements are established, and a
+/// contraction timer on a twelve-week home screen is just alarming. With no
+/// due date on file there is no week to test, so they are shown rather than
+/// hidden - the user can judge.
+bool _showsLabourTools(UserProfile profile) {
+  if (profile.lifeStage != LifeStage.pregnancy) return false;
+  final week = profile.pregnancyWeek;
+  return week == null || week >= 24;
+}
+
+/// Side-by-side entry points to the kick counter and contraction timer.
+class _LabourToolsCard extends StatelessWidget {
+  const _LabourToolsCard({
+    required this.onKickCounter,
+    required this.onContractionTimer,
+  });
+
+  final VoidCallback onKickCounter;
+  final VoidCallback onContractionTimer;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Keeping track'),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: _ToolTile(
+                icon: Icons.favorite_rounded,
+                label: 'Kick counter',
+                caption: 'Count to ten',
+                onTap: onKickCounter,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _ToolTile(
+                icon: Icons.timer_outlined,
+                label: 'Contractions',
+                caption: 'Time them',
+                onTap: onContractionTimer,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ToolTile extends StatelessWidget {
+  const _ToolTile({
+    required this.icon,
+    required this.label,
+    required this.caption,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String caption;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: p.brandSurface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(icon, size: 20, color: p.brand),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(label, style: context.texts.titleSmall),
+          const SizedBox(height: 2),
+          Text(
+            caption,
+            style: context.texts.bodySmall?.copyWith(color: p.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PhotoShortcuts extends StatelessWidget {
   const _PhotoShortcuts({required this.onOpenPlan});
 

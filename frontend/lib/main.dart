@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import 'screens/auth/auth_gate.dart';
 import 'services/auth_controller.dart';
 import 'services/care_controller.dart';
+import 'services/contraction_controller.dart';
 import 'services/emergency_controller.dart';
+import 'services/kick_controller.dart';
 import 'services/local_storage_service.dart';
 import 'services/milestone_controller.dart';
 import 'services/notification_service.dart';
@@ -43,6 +45,10 @@ class PregnancyAiApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NutritionController(storage)..load()),
         ChangeNotifierProvider(create: (_) => EmergencyController(storage)..load()),
         ChangeNotifierProvider(create: (_) => CareController(storage)..load()),
+        ChangeNotifierProvider(create: (_) => KickController(storage)..load()),
+        ChangeNotifierProvider(
+          create: (_) => ContractionController(storage)..load(),
+        ),
         // Sync depends on who is signed in, so it is built from the auth
         // controller rather than beside it.
         ChangeNotifierProxyProvider<AuthController, SyncController>(
