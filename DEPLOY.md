@@ -33,7 +33,11 @@ already handles — so the same image deploys to any of them unchanged.
 
 ## 1. Backend → Render (free, permanent URL)
 
-`backend/render.yaml` and `backend/Dockerfile` are already set up.
+> Kept for reference. **Section 1c (Cloud Run) is the recommended host** - a
+> far larger free allowance and no fifty-second cold start. The trade is that
+> Google wants a card on file and Render does not.
+
+`render.yaml` and `backend/Dockerfile` are already set up.
 
 1. Push this repo to GitHub.
 2. On [render.com](https://render.com): **New → Blueprint**, point it at the
@@ -80,26 +84,181 @@ You get `https://<service>-<org>.koyeb.app`.
 
 ---
 
-## 1c. Backend → Google Cloud Run (free tier, needs a card on file)
+## 1c. Backend → Google Cloud Run (recommended)
 
-The most generous of the three — 2M requests and 180k vCPU-seconds a month,
-permanently free — but you must attach a billing account even though you will
-not be charged at this scale. **Set a budget alert if you use this.**
+The most generous free tier of the three: **2 million requests, 180,000
+vCPU-seconds and 360,000 GiB-seconds a month, permanently free.** It scales to
+zero when nobody is using it, and a cold start is a few seconds rather than
+Render's fifty.
+
+**The catch:** Google requires a billing account with a real card before it
+will run anything, even inside the always-free allowance. Nothing is charged
+at this scale, but the card has to be on file. Set a budget alert (step 7) and
+treat that as non-negotiable.
+
+### 1. Create the project
+
+[console.cloud.google.com](https://console.cloud.google.com) → project picker →
+**New project** → name it `pregnancy-ai` → **Create**.
+
+Then **Billing** → link a billing account. This is the card step.
+
+### 2. Open Cloud Shell
+
+The terminal icon in the top-right of the console. It is a free browser VM with
+`gcloud`, `git` and Docker already installed - no local install, and nothing to
+configure.
+
+```bash
+gcloud config set project pregnancy-ai
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com secretmanager.googleapis.com
+```
+
+Enabling the APIs takes a minute or two the first time.
+
+### 3. Get the code
+
+```bash
+git clone https://github.com/Mounya1/pregnancy-ai-project.git
+cd pregnancy-ai-project
+```
+
+### 4. Deploy
 
 ```bash
 gcloud run deploy pregnancy-ai-backend \
   --source backend \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars ALLOWED_ORIGINS=https://your-app.netlify.app \
-  --set-secrets OPENAI_API_KEY=openai-key:latest
+  --memory 1Gi \
+  --timeout 300
 ```
 
-Put the key in Secret Manager first:
+Three things in there are load-bearing:
+
+| Flag | Why |
+| --- | --- |
+| `--source backend` | Builds with `backend/` as the context. Pointed at the repo root, the Dockerfile's `COPY . .` would bake the whole Flutter app into the API image. |
+| `--memory 1Gi` | The 512Mi default is tight once FAISS and the LangChain tree are resident. Still well inside the free allowance - 360,000 GiB-seconds a month is 100 hours of request time at 1Gi. |
+| `--allow-unauthenticated` | Without it every request needs a Google identity token, and the web app has none. |
+
+First build takes 5-10 minutes. It prints a `https://pregnancy-ai-backend-*.run.app`
+URL at the end - that is your new API base.
+
+### 5. Set the environment
+
+Secrets go in Secret Manager rather than plain environment variables. Same
+effort, and they stay out of build logs and revision history:
 
 ```bash
-echo -n "sk-..." | gcloud secrets create openai-key --data-file=-
+echo -n "sk-proj-YOUR_KEY" | gcloud secrets create openai-api-key --data-file=-
+
+PROJECT_NUMBER=$(gcloud projects describe pregnancy-ai --format='value(projectNumber)')
+gcloud secrets add-iam-policy-binding openai-api-key \
+  --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+gcloud run services update pregnancy-ai-backend --region us-central1 \
+  --set-secrets OPENAI_API_KEY=openai-api-key:latest \
+  --update-env-vars CHAT_MODEL=gpt-4o,VISION_MODEL=gpt-4o,EMBEDDING_MODEL=text-embedding-3-small
 ```
+
+`--update-env-vars` adds without clearing. `--set-env-vars` replaces the lot,
+which is how people accidentally unset their own API key.
+
+`ALLOWED_ORIGINS` is set after the frontend is repointed, in step 6.
+
+If you are also running Cognito and DynamoDB sync (sections 2b and 2c), add
+those the same way - the two AWS keys as secrets, the rest as plain vars:
+
+```bash
+echo -n "AKIA..." | gcloud secrets create aws-access-key-id --data-file=-
+echo -n "YOUR_SECRET" | gcloud secrets create aws-secret-access-key --data-file=-
+# repeat the add-iam-policy-binding above for each secret
+
+gcloud run services update pregnancy-ai-backend --region us-central1 \
+  --set-secrets OPENAI_API_KEY=openai-api-key:latest,\
+AWS_ACCESS_KEY_ID=aws-access-key-id:latest,\
+AWS_SECRET_ACCESS_KEY=aws-secret-access-key:latest \
+  --update-env-vars COGNITO_REGION=us-east-1,COGNITO_USER_POOL_ID=us-east-1_XXXX,\
+COGNITO_CLIENT_ID=YOUR_CLIENT_ID,DYNAMODB_TABLE=pregnancy_ai_sync,AWS_REGION=us-east-1
+```
+
+`--set-secrets` replaces the whole secret list, so name every secret each time
+you call it.
+
+Check it came up:
+
+```bash
+curl https://YOUR-SERVICE.run.app/health
+```
+
+`openai_key_configured: true` and `sync_enabled: true` mean the environment
+landed.
+
+### 6. Repoint the app, then close CORS
+
+In Vercel → Settings → Environment Variables, change `API_BASE_URL` to the new
+`.run.app` URL, then **Redeploy** - Flutter compiles that value in at build
+time, so an env change alone does nothing.
+
+Once the site is talking to Cloud Run, lock the API down:
+
+```bash
+gcloud run services update pregnancy-ai-backend --region us-central1 \
+  --update-env-vars ALLOWED_ORIGINS=https://pregnancy-ai-project.vercel.app
+```
+
+Do it in that order. Closing CORS before the frontend is repointed just breaks
+the live site.
+
+### 7. Set a budget alert
+
+**Billing → Budgets & alerts → Create budget** → amount `1` → alert at 100%.
+
+The free tier is generous but not a hard cap: traffic past it bills silently.
+One dollar is far enough above zero to be meaningful and far enough below a
+surprise to be worth knowing about.
+
+### 8. Optional: deploy on every push
+
+`cloudbuild.yaml` at the repo root does what `render.yaml` did.
+
+**Cloud Build → Triggers → Create trigger** → connect the GitHub repo →
+Event: push to branch → Branch: `^main$` → Configuration: **Cloud Build
+configuration file** → Location: `/cloudbuild.yaml` → Create.
+
+Grant the build service account permission to deploy, or the trigger builds
+successfully and then fails on the last step:
+
+```bash
+PROJECT_NUMBER=$(gcloud projects describe pregnancy-ai --format='value(projectNumber)')
+gcloud projects add-iam-policy-binding pregnancy-ai \
+  --member="serviceAccount:$PROJECT_NUMBER@cloudbuild.gserviceaccount.com" \
+  --role="roles/run.admin"
+gcloud projects add-iam-policy-binding pregnancy-ai \
+  --member="serviceAccount:$PROJECT_NUMBER@cloudbuild.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+The trigger deploys the image only - it never touches environment variables, so
+a push cannot wipe your API key.
+
+### Logs
+
+```bash
+gcloud run services logs tail pregnancy-ai-backend --region us-central1
+```
+
+Or **Cloud Run → pregnancy-ai-backend → Logs** in the console.
+
+### Retiring Render
+
+Leave the Render service running until the Vercel site has been redeployed
+against the new URL and you have confirmed a chat request works. Then Render →
+Settings → **Delete service**. `render.yaml` can stay in the repo; it costs
+nothing and documents the alternative.
 
 ---
 
@@ -274,7 +433,11 @@ policy scoped to that one table:
 Three actions on one table - not `dynamodb:*` on `*`. If the key leaks, that
 is the difference between one table and your whole account.
 
-### Set it on Render
+### Set it on the backend host
+
+On Cloud Run these go in via `gcloud run services update` - see section 1c,
+step 5, which puts the two AWS keys in Secret Manager rather than in plain
+environment variables. On Render they are dashboard fields.
 
 | Key | Value |
 |---|---|
@@ -357,6 +520,8 @@ policy URL, and a Play Console account (one-off fee).
 - [ ] `flutter test` passes
 - [ ] Set a usage limit on your OpenAI account. A public endpoint with no cap
       is an open invoice.
+- [ ] On Cloud Run, a budget alert exists. The free tier is an allowance, not
+      a ceiling — traffic past it bills without asking.
 
 ## What this app deliberately does not do
 

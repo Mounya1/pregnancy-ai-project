@@ -1,0 +1,59 @@
+# Continuous deployment to Google Cloud Run.
+#
+# Point a Cloud Build trigger at this file (Build type: "Cloud Build
+# configuration file") and every push to main rebuilds and rolls out the API.
+# The equivalent of render.yaml, which this replaces.
+
+substitutions:
+  _SERVICE: pregnancy-ai-backend
+  _REGION: us-central1
+  _REPO: containers
+
+steps:
+  # The build context is backend/, not the repo root.
+  #
+  # The Dockerfile ends in `COPY . .`, so a root context would bake the entire
+  # Flutter app - and any local .env sitting beside it - into the API image.
+  # render.yaml solved this with rootDir; here it is the final argument.
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$COMMIT_SHA
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:latest
+      - --file=backend/Dockerfile
+      - backend
+
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}
+
+  # Deploys the image only. Environment variables and secrets are deliberately
+  # not set here - they live on the service, so a deploy cannot overwrite the
+  # OpenAI key with a blank, and no secret has to be committed to this file.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --quiet
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$COMMIT_SHA
+
+options:
+  # Without this a build using the default service account fails on "could not
+  # resolve storage bucket for logs" rather than on anything to do with the app.
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+# FAISS and the LangChain tree take a while to install from scratch.
+timeout: 1200s
