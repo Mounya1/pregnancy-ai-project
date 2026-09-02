@@ -101,6 +101,11 @@ treat that as non-negotiable.
 [console.cloud.google.com](https://console.cloud.google.com) → project picker →
 **New project** → name it `pregnancy-ai` → **Create**.
 
+Project IDs are globally unique, so if `pregnancy-ai` is taken the console
+appends digits - `pregnancy-ai-481207` or similar. Whatever it settles on is
+the ID every command below wants, not the display name. Copy it from the
+project picker.
+
 Then **Billing** → link a billing account. This is the card step.
 
 ### 2. Open Cloud Shell
