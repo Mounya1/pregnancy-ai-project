@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../services/auth_controller.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/ui/illustrations.dart';
 
@@ -66,7 +68,14 @@ class AuthShell extends StatelessWidget {
                     const SizedBox(width: AppSpacing.sm),
                     Flexible(
                       child: Text(
-                        'Your account and data stay on this phone. Nothing is uploaded.',
+                        // A cloud build can upload, so it cannot flatly claim
+                        // otherwise - but sync is a button on the Account
+                        // screen, not automatic, so it must not promise that
+                        // records travel on their own either.
+                        context.watch<AuthController>().isCloud
+                            ? 'Your health records stay on this device unless you '
+                                'back them up to your account.'
+                            : 'Your account and data stay on this phone. Nothing is uploaded.',
                         style: TextStyle(fontSize: 11.5, color: p.textMuted, height: 1.4),
                       ),
                     ),
@@ -261,6 +270,53 @@ class _AuthFieldState extends State<AuthField> {
                     tooltip: _hidden ? 'Show password' : 'Hide password',
                   )
                 : null,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The link between the two auth forms - "Already have an account? Sign in"
+/// and its mirror.
+///
+/// Cloud builds only. On a device-only build there is exactly one account per
+/// phone and creating a second wipes the first, so offering the swap there
+/// would be an invitation to lose data rather than a shortcut.
+class AuthSwitch extends StatelessWidget {
+  const AuthSwitch({
+    super.key,
+    required this.prompt,
+    required this.action,
+    required this.onPressed,
+  });
+
+  final String prompt;
+  final String action;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          prompt,
+          style: TextStyle(fontSize: 12.5, color: p.textSecondary),
+        ),
+        TextButton(
+          onPressed: onPressed,
+          style: TextButton.styleFrom(
+            foregroundColor: p.brand,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            minimumSize: const Size(0, 40),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            action,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
           ),
         ),
       ],

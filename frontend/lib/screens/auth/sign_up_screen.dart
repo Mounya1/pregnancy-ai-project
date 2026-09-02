@@ -78,11 +78,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final busy = context.watch<AuthController>().busy;
+    final auth = context.watch<AuthController>();
+    final busy = auth.busy;
 
     return AuthShell(
       title: 'Create your account',
-      subtitle: 'So your plans, reminders, and records are yours alone on this phone.',
+      subtitle: auth.isCloud
+          ? 'One account, so you can sign in and pick your plans back up on any device.'
+          : 'So your plans, reminders, and records are yours alone on this phone.',
       children: [
         AuthField(
           controller: _name,
@@ -96,7 +99,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SizedBox(height: AppSpacing.lg),
         AuthField(
           controller: _email,
-          label: context.watch<AuthController>().isCloud ? 'Email' : 'Email (optional)',
+          label: auth.isCloud ? 'Email' : 'Email (optional)',
           hint: 'you@example.com',
           icon: Icons.mail_outline_rounded,
           keyboardType: TextInputType.emailAddress,
@@ -108,7 +111,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         AuthField(
           controller: _password,
           label: 'Password',
-          hint: context.watch<AuthController>().isCloud
+          hint: auth.isCloud
               ? '8+ characters, upper and lower case, and a number'
               : 'At least 6 characters',
           icon: Icons.lock_outline_rounded,
@@ -134,6 +137,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
           loading: busy,
           onPressed: busy ? null : _submit,
         ),
+        // The important half of the pair: a returning user opening the site
+        // on a new browser lands here, with an account already waiting.
+        if (auth.isCloud)
+          AuthSwitch(
+            prompt: 'Already have an account?',
+            action: 'Sign in',
+            onPressed: busy ? null : auth.showSignIn,
+          ),
         const SizedBox(height: AppSpacing.lg),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
@@ -149,10 +160,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  context.watch<AuthController>().isCloud
+                  auth.isCloud
                       ? 'We will email you a code to confirm this address. Your '
-                          'health data stays on this device - the account is only '
-                          'used to sign you in.'
+                          'health data stays on this device until you back it up '
+                          'from the Account screen.'
                       : 'There is no password reset. With no server, nobody can '
                           'verify it is you - so keep this password somewhere safe.',
                   style: TextStyle(fontSize: 11.5, height: 1.45, color: p.textSecondary),

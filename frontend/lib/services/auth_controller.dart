@@ -60,6 +60,16 @@ class AuthController extends ChangeNotifier {
   String? _pendingEmail;
   String? get pendingEmail => _pendingEmail;
 
+  /// Cloud only: which form to show when the account state alone does not
+  /// settle it. Null means "let the device decide".
+  ///
+  /// The gate defaults to sign-in when this browser remembers an account and
+  /// sign-up when it does not. That is right on a first visit and wrong after
+  /// it: a returning user on a new browser has no local record but does have
+  /// an account, and someone whose browser remembers one may want to create
+  /// another. These let the two forms reach each other.
+  bool? _wantsSignUp;
+
   Account? get account => _account;
   AuthStatus get status => _status;
 
@@ -106,18 +116,39 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Cloud only: show the sign-up form even though this device remembers an
+  /// account. Called from the "Create one" link on the sign-in screen.
+  void showSignUp() => _setWantsSignUp(true);
+
+  /// Cloud only: show the sign-in form even though this device remembers no
+  /// account - the usual case for someone opening the site on a new browser.
+  void showSignIn() => _setWantsSignUp(false);
+
+  void _setWantsSignUp(bool value) {
+    if (!isCloud || _wantsSignUp == value) return;
+    // The gate renders from the status alone, so tapping the link for the
+    // form already on screen should pin the choice without a rebuild.
+    final before = _status;
+    _wantsSignUp = value;
+    _recomputeStatus();
+    if (_status != before) notifyListeners();
+  }
+
   void _recomputeStatus() {
     if (isCloud) {
       if (_pendingEmail != null) {
+        // Past both forms, so the choice between them is spent.
+        _wantsSignUp = null;
         _status = AuthStatus.needsConfirmation;
       } else if (_tokens != null && _sessionActive) {
+        _wantsSignUp = null;
         _status = AuthStatus.signedIn;
-      } else if (_account != null) {
+      } else if (_wantsSignUp ?? (_account == null)) {
+        _status = AuthStatus.needsSignUp;
+      } else {
         // The account is remembered so returning users see "Welcome back"
         // with their email filled in rather than a blank sign-up form.
         _status = AuthStatus.needsSignIn;
-      } else {
-        _status = AuthStatus.needsSignUp;
       }
       return;
     }

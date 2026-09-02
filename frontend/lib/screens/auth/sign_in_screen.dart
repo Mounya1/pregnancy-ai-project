@@ -83,11 +83,16 @@ class _SignInScreenState extends State<SignInScreen> {
   Widget build(BuildContext context) {
     final p = context.palette;
     final auth = context.watch<AuthController>();
-    final name = auth.account?.firstName ?? 'there';
+    // No name when this browser has never seen the account - someone who
+    // arrived here from "Already have an account?" would otherwise be
+    // greeted as "Welcome back, there".
+    final name = auth.account?.firstName;
 
     return AuthShell(
-      title: 'Welcome back, $name',
-      subtitle: 'Enter your password to unlock your plans and records.',
+      title: name == null ? 'Welcome back' : 'Welcome back, $name',
+      subtitle: auth.isCloud
+          ? 'Sign in with your email and password to pick up where you left off.'
+          : 'Enter your password to unlock your plans and records.',
       showBabyFigure: true,
       children: [
         // Cloud accounts are keyed on email, and the same login works on any
@@ -142,6 +147,14 @@ class _SignInScreenState extends State<SignInScreen> {
           style: TextButton.styleFrom(foregroundColor: p.textSecondary),
           child: const Text('Forgot password?', style: TextStyle(fontSize: 12.5)),
         ),
+        // Device-only builds have one account per phone, so there is nothing
+        // to switch to - see AuthSwitch.
+        if (auth.isCloud)
+          AuthSwitch(
+            prompt: "Don't have an account?",
+            action: 'Create one',
+            onPressed: auth.busy ? null : auth.showSignUp,
+          ),
       ],
     );
   }
