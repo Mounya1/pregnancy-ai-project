@@ -2,7 +2,7 @@
 
 An AI-powered nutrition safety assistant covering **pregnancy**, **postpartum/breastfeeding**, and **baby feeding** — text chat, voice, and food-photo analysis, all grounded in ACOG/CDC/FDA/NIH/AAP guidance via RAG rather than raw LLM guesses.
 
-Built as a full-stack portfolio project: FastAPI + LangChain/FAISS RAG backend, Flutter Web frontend, deployable for free with no app store submission required.
+Built as a full-stack portfolio project: FastAPI + LangChain/FAISS RAG backend, Flutter Web frontend
 
 ---
 
