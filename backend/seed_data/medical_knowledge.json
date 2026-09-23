@@ -103,5 +103,295 @@
     "topic": "Postpartum nutrition for recovery",
     "content": "Postpartum recovery benefits from adequate protein, iron to replace blood loss from delivery, and continued prenatal vitamin use if breastfeeding. Hydration needs increase for breastfeeding mothers.",
     "source": "ACOG"
+  },
+  {
+    "topic": "Leafy greens and spinach during pregnancy",
+    "content": "Leafy greens such as spinach, kale, and romaine are recommended during pregnancy. They are among the best food sources of folate, which supports neural tube development, and also provide iron, calcium, and fiber. Wash all raw greens thoroughly under running water, including bagged greens labelled pre-washed, because leafy greens have been linked to E. coli and Listeria outbreaks. Cooked greens are equally nutritious and carry less contamination risk.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Eggs during pregnancy",
+    "content": "Eggs are safe during pregnancy when cooked until both the white and yolk are firm, which kills Salmonella. Avoid runny yolks, soft-scrambled eggs, homemade mayonnaise, raw cookie dough, and Caesar dressings made with raw egg. Pasteurized shell eggs or pasteurized egg products can be used if a runny yolk is wanted. Eggs provide high-quality protein and choline, which supports fetal brain development.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Chicken and poultry during pregnancy",
+    "content": "Chicken and turkey are safe during pregnancy when cooked to an internal temperature of 165F (74C) measured with a food thermometer. Poultry is a good source of protein, iron, and B vitamins. Do not eat undercooked poultry, and keep raw poultry separate from ready-to-eat foods to avoid cross-contamination with Salmonella and Campylobacter.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Beef, pork and red meat during pregnancy",
+    "content": "Beef, pork, and lamb are safe during pregnancy when cooked to 145F (63C) with a three-minute rest, and ground meat to 160F (71C). Red meat is a valuable source of heme iron, which is absorbed more easily than iron from plants. Avoid rare or undercooked meat, which can carry Toxoplasma, Salmonella, and E. coli. Toxoplasmosis during pregnancy can cause serious harm to the developing baby.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Rice and whole grains during pregnancy",
+    "content": "Rice, oats, quinoa, whole wheat, and other grains are safe during pregnancy and provide energy, B vitamins, and fiber. Whole grains are preferred over refined grains for their fiber and steadier effect on blood sugar. Varying the grains eaten, rather than relying on rice alone, is sensible because rice takes up more arsenic from soil than most other grains.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Beans, lentils and legumes during pregnancy",
+    "content": "Beans, lentils, chickpeas, and other legumes are safe and strongly recommended during pregnancy. They are among the richest plant sources of folate, iron, protein, and fiber, and the fiber helps with the constipation that is common in pregnancy. Cook dried beans thoroughly. Increase the amount gradually if they are new to the diet, to limit gas and bloating.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Nuts and seeds during pregnancy",
+    "content": "Nuts and seeds are safe during pregnancy unless the person is allergic to them. They provide protein, healthy fats, fiber, and minerals such as magnesium and zinc. Avoiding peanuts or tree nuts during pregnancy is no longer advised, as it does not prevent allergy in the child and may remove a useful source of nutrition. Choose unsalted varieties where possible.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Yogurt during pregnancy",
+    "content": "Yogurt made from pasteurized milk is safe during pregnancy and is a good source of calcium, protein, and probiotics. Check the label says pasteurized. Avoid yogurt or dairy drinks made from raw or unpasteurized milk, which can carry Listeria. Plain yogurt has less added sugar than flavoured varieties.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Milk during pregnancy",
+    "content": "Pasteurized cow's milk is safe during pregnancy and supplies calcium, protein, iodine, and vitamin D. Raw or unpasteurized milk must be avoided because it can carry Listeria, Salmonella, and E. coli, which are far more dangerous in pregnancy. Fortified plant milks are an alternative, but check they provide calcium and, ideally, vitamin B12 and iodine.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Fresh fruit during pregnancy",
+    "content": "Fresh fruit is recommended during pregnancy for vitamins, fiber, and fluid. Wash all fruit under running water before eating or cutting it, including fruit with skin that will not be eaten, because a knife can carry bacteria from the rind into the flesh. Refrigerate cut fruit promptly. Do not eat cut fruit that has been left at room temperature for more than two hours.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Berries during pregnancy",
+    "content": "Berries such as strawberries, blueberries, raspberries, and blackberries are safe during pregnancy. They are high in vitamin C, which aids iron absorption, and in fiber and antioxidants, while being relatively low in sugar. Wash them thoroughly just before eating, and avoid berries that look mouldy or damaged.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Bananas during pregnancy",
+    "content": "Bananas are safe during pregnancy and are a convenient source of potassium, vitamin B6, and fiber. Vitamin B6 is used in the management of pregnancy nausea, and bananas are often tolerated when other foods are not. Their fiber can also help with constipation.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Citrus fruit during pregnancy",
+    "content": "Oranges, lemons, grapefruit, and other citrus fruits are safe during pregnancy and are excellent sources of vitamin C and folate. Eating vitamin C alongside iron-rich plant foods improves iron absorption. Citrus may worsen heartburn or reflux in later pregnancy for some people. Only pasteurized juice should be consumed; unpasteurized fresh-pressed juice carries a Listeria and E. coli risk.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Apples and pears during pregnancy",
+    "content": "Apples and pears are safe during pregnancy and provide fiber, vitamin C, and fluid. Wash them under running water before eating, as the skin can carry bacteria and pesticide residue. The skin holds much of the fiber, so it is worth keeping on after washing.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Melon during pregnancy",
+    "content": "Melons such as cantaloupe, honeydew, and watermelon are safe during pregnancy if handled carefully. The rough rind of cantaloupe can carry Listeria, which a knife then carries into the flesh, and cantaloupe has been the source of several Listeria outbreaks. Scrub the rind under running water before cutting, refrigerate cut melon straight away, and eat it within three to four days.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Raw sprouts during pregnancy",
+    "content": "Raw or lightly cooked sprouts, including alfalfa, mung bean, clover, and radish sprouts, should be avoided during pregnancy. The warm, humid conditions needed to grow them are also ideal for Salmonella, E. coli, and Listeria, and washing does not remove the bacteria because they grow inside the seed. Sprouts cooked thoroughly until steaming hot are safe.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Liver and vitamin A during pregnancy",
+    "content": "Liver, liver pate, and liver sausage should be limited during pregnancy because they are extremely high in preformed vitamin A (retinol), which can cause birth defects in large amounts. Occasional small portions are not considered dangerous, but liver should not be a regular food in pregnancy, and supplements containing high-dose retinol should be avoided. Beta-carotene from fruit and vegetables does not carry this risk.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Smoked and refrigerated seafood during pregnancy",
+    "content": "Refrigerated smoked seafood such as lox, nova-style salmon, kippered fish, and jerky should be avoided during pregnancy unless it is cooked until steaming hot or used in a fully cooked dish such as a casserole. It is a known source of Listeria, which can grow at refrigerator temperatures. Shelf-stable canned or pouched smoked seafood is safe.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Leftovers and reheating during pregnancy",
+    "content": "Leftovers should be refrigerated within two hours, eaten within three to four days, and reheated to 165F (74C) until steaming hot throughout before eating during pregnancy. Listeria can grow slowly even at refrigerator temperatures, and pregnancy makes Listeria infection roughly ten times more likely. When in doubt, throw it out.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Artificial sweeteners during pregnancy",
+    "content": "Most artificial sweeteners, including aspartame, sucralose, acesulfame potassium, and stevia, are considered safe in moderate amounts during pregnancy. Aspartame should be avoided by anyone with phenylketonuria (PKU). Saccharin is generally advised against because it crosses the placenta. Sweeteners are not a substitute for a balanced diet, and water remains the best routine drink.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Herbal teas during pregnancy",
+    "content": "Most herbal teas have not been well studied in pregnancy, so moderation is advised and unfamiliar herbal blends are best avoided. Ginger tea and peppermint tea are widely considered acceptable in normal amounts, and ginger has evidence for easing nausea. Teas containing licorice root, blue cohosh, black cohosh, pennyroyal, or high-dose raspberry leaf should be avoided unless a clinician advises otherwise. Remember that green and black teas contain caffeine.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Soy foods during pregnancy",
+    "content": "Soy foods such as tofu, tempeh, edamame, and soy milk are safe during pregnancy in normal dietary amounts, and are useful sources of protein, iron, and calcium for those eating less meat. Choose pasteurized soy milk and check it is fortified with calcium and vitamin B12. Concentrated soy isoflavone supplements are a different matter and are not recommended in pregnancy.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Honey during pregnancy",
+    "content": "Honey is safe for pregnant adults. The botulism spores that make honey dangerous for infants under 12 months are handled without difficulty by a mature adult digestive system, and there is no evidence they reach the baby. This is the opposite of the advice for babies, where honey must be avoided entirely before the first birthday.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Water and hydration during pregnancy",
+    "content": "Pregnancy increases fluid needs, and roughly 8 to 12 cups (about 2 to 3 litres) of water a day is commonly advised, alongside the fluid in food and other drinks. Adequate fluid supports the increased blood volume, helps prevent constipation and urinary tract infections, and can reduce swelling. Pale straw-coloured urine is a practical sign of adequate hydration. Needs rise in hot weather, with exercise, and with vomiting.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Folic acid during pregnancy",
+    "content": "All people who could become pregnant are advised to take 400 micrograms of folic acid daily, and 400 to 800 micrograms daily during pregnancy, to reduce the risk of neural tube defects such as spina bifida. The neural tube closes in the first month, often before pregnancy is confirmed, so supplementation before conception matters. Food sources include leafy greens, legumes, citrus, and fortified grains, but supplementation is still recommended. A higher dose may be prescribed after a previously affected pregnancy.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Iron during pregnancy",
+    "content": "Pregnancy raises the daily iron requirement to about 27 milligrams, roughly double the usual adult need, to support the expanded blood volume and the baby's stores. Good sources include red meat, poultry, fish, legumes, fortified cereals, and dark leafy greens. Pairing plant iron with vitamin C improves absorption, while tea, coffee, and calcium supplements taken at the same meal reduce it. Iron deficiency anaemia is common in pregnancy and is screened for routinely.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Calcium during pregnancy",
+    "content": "About 1,000 milligrams of calcium a day is recommended during pregnancy, and 1,300 milligrams for pregnant teenagers. Calcium supports the baby's developing bones and teeth and protects the mother's bone density, since the baby will draw on maternal stores if intake is low. Sources include pasteurized dairy, fortified plant milks, tofu set with calcium, canned fish with soft bones, and leafy greens.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Vitamin D during pregnancy",
+    "content": "A daily intake of about 600 IU of vitamin D is recommended during pregnancy to support calcium absorption and bone development. Food sources are limited, mainly oily fish, egg yolks, and fortified milk and cereals, so most prenatal vitamins include it. Deficiency is common in people with darker skin, limited sun exposure, or who cover up, and a clinician may test levels and advise a higher dose.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Protein during pregnancy",
+    "content": "Protein needs rise during pregnancy to roughly 71 grams a day, particularly in the second and third trimesters when the baby grows fastest. Good sources include cooked meat, poultry, fish, eggs, pasteurized dairy, legumes, tofu, and nuts. Spreading protein across meals is more effective than eating most of it in one sitting. Most people meet this without special effort by including a protein food at each meal.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Calorie needs during pregnancy",
+    "content": "Eating for two is a misleading phrase. No extra calories are needed in the first trimester, about 340 extra calories a day in the second, and about 450 extra a day in the third. That is roughly a substantial snack, not a second meal. Food quality matters more than quantity, and the extra intake is best taken as nutrient-dense foods rather than sweets or refined snacks.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Weight gain during pregnancy",
+    "content": "Recommended total weight gain depends on pre-pregnancy BMI: about 28 to 40 pounds if underweight, 25 to 35 pounds if normal weight, 15 to 25 pounds if overweight, and 11 to 20 pounds if obese. Gain is usually slow in the first trimester and steadier afterwards. Targets are individual, and a clinician's advice for a specific pregnancy takes precedence over any general range.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Gestational diabetes and diet",
+    "content": "Gestational diabetes is managed largely through diet: spreading carbohydrate across three moderate meals and two to three snacks rather than concentrating it, choosing high-fiber and whole-grain carbohydrates, and pairing carbohydrate with protein or fat to slow the rise in blood glucose. Sugary drinks and fruit juice are usually avoided. Diet plans should be set with a clinician or dietitian and adjusted against blood glucose readings, and some people also require insulin.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Nausea and morning sickness foods",
+    "content": "For pregnancy nausea, small frequent meals work better than large ones, because both an empty and an overfull stomach worsen symptoms. Dry, bland, starchy foods such as crackers, toast, or plain rice are often tolerated, and eating a little before getting out of bed can help. Ginger has evidence for reducing nausea, as does vitamin B6, sometimes combined with doxylamine under medical advice. Persistent vomiting that prevents keeping fluids down needs prompt medical attention, as it may be hyperemesis gravidarum.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Constipation and fiber during pregnancy",
+    "content": "Constipation is very common in pregnancy because of hormonal changes, the pressure of the growing uterus, and iron supplements. Aim for about 25 to 30 grams of fiber a day from whole grains, legumes, fruit, and vegetables, increase fluid intake alongside the fiber, and stay gently active. Prunes and kiwi are commonly suggested. Laxatives should only be used on a clinician's advice.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Heartburn during pregnancy",
+    "content": "Heartburn is common in later pregnancy as hormones relax the valve at the top of the stomach and the uterus presses upward. Smaller, more frequent meals help, as does staying upright for an hour after eating and not eating close to bedtime. Common triggers include fried and fatty foods, spicy food, citrus, tomato, chocolate, and caffeine, though triggers vary between individuals. Any antacid should be checked with a clinician, since some contain ingredients best avoided in pregnancy.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Listeria and food safety during pregnancy",
+    "content": "Pregnant people are about ten times more likely than the general population to get listeriosis, and infection can cause miscarriage, stillbirth, preterm labour, or serious illness in the newborn, even when the mother's own symptoms are mild. The higher-risk foods are unpasteurized dairy, soft cheeses made from raw milk, deli meats and hot dogs unless heated to steaming, refrigerated smoked seafood, refrigerated pate, pre-cut melon left at room temperature, and raw sprouts. Listeria grows at refrigerator temperatures, so cold storage is not protection.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Eating out during pregnancy",
+    "content": "Eating at restaurants is fine during pregnancy with a few adjustments: order meat, poultry, fish, and eggs fully cooked, skip raw bar items and sushi containing raw fish, avoid unpasteurized cheese and freshly squeezed unpasteurized juice, and be cautious with buffet food that may have sat at room temperature. Salads are best from places with good turnover. If a dish arrives undercooked, it is reasonable to send it back.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Hydration while breastfeeding",
+    "content": "Breastfeeding increases fluid needs substantially, and around 13 cups (about 3 litres) of total fluid a day is a common guide. Drinking to thirst is generally adequate, and having a glass of water at each feed is a practical habit, since thirst often arrives with letdown. Dehydration tends to affect how the mother feels more than it affects milk supply, which the body protects. Very dark urine, headache, or dizziness suggests more fluid is needed.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Calorie needs while breastfeeding",
+    "content": "Exclusive breastfeeding uses roughly 330 to 400 extra calories a day beyond usual needs, more than pregnancy required. Severely restricting calories to lose weight can reduce milk supply and leave the mother depleted, so gradual weight loss of about one pound a week is the usual advice. Nutrient-dense foods matter more than counting, and regular snacks are often easier than larger meals in early postpartum.",
+    "source": "CDC"
+  },
+  {
+    "topic": "Spicy and strongly flavoured foods while breastfeeding",
+    "content": "There is no need to avoid spicy, garlicky, or strongly flavoured food while breastfeeding. Flavours do pass into breast milk, but this is generally considered beneficial: it exposes the baby to the family's food culture and is associated with easier acceptance of those flavours at weaning. If a particular food repeatedly and clearly upsets a specific baby, it can be trialled out and back in, but blanket avoidance is not recommended.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Gassy foods while breastfeeding",
+    "content": "Foods such as broccoli, cabbage, beans, and onions cause gas in the mother through fermentation in her own gut, and the gas itself does not pass into breast milk. Preemptively cutting out these foods is not recommended and removes nutritious options from the diet. Fussiness in babies is common and usually has other causes. If a specific food seems repeatedly linked to a baby's discomfort, discuss it with a clinician rather than eliminating food groups.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Common allergens while breastfeeding",
+    "content": "Avoiding common allergens such as dairy, eggs, peanuts, or wheat while breastfeeding is not recommended as a way to prevent allergy in the baby, and there is no good evidence it works. A restrictive diet risks the mother's own nutrition. If a baby shows genuine signs of a food protein reaction, such as blood or mucus in the stool, eczema that will not settle, or persistent vomiting, this should be assessed by a clinician, who may then supervise a targeted elimination.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Iron and protein while breastfeeding",
+    "content": "Postpartum iron needs depend on blood loss at birth and whether periods have returned; breastfeeding people who are not menstruating need less iron than during pregnancy, around 9 to 10 milligrams a day, but those who lost significant blood may need more. Protein needs remain elevated at roughly 71 grams a day to support milk production and tissue repair. Continuing a prenatal vitamin while breastfeeding is commonly advised.",
+    "source": "NIH"
+  },
+  {
+    "topic": "Vitamin D for breastfed babies",
+    "content": "Breast milk is low in vitamin D regardless of the mother's diet, so the AAP recommends 400 IU of supplemental vitamin D daily for all breastfed and partially breastfed infants, beginning in the first few days after birth and continuing until the baby is weaned onto at least 1 litre (about 32 ounces) a day of vitamin D-fortified formula or whole milk. Formula-fed infants taking at least that volume do not need a separate supplement.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Iron-rich first foods for babies",
+    "content": "Iron stores built up before birth begin to run low around six months, so early complementary foods should include iron-rich options: pureed or finely minced meat, poultry, fish, well-cooked mashed legumes, tofu, and iron-fortified infant cereal. Serving these with a vitamin C source such as pureed fruit improves absorption. Iron deficiency in infancy is linked to developmental delay, which is why this is emphasised more than any particular first vegetable.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Water for babies",
+    "content": "Babies under six months should not be given water. Breast milk or formula supplies all the fluid they need, and extra water can dilute sodium levels dangerously and fill a small stomach in place of nutrition. From around six months, when solids begin, small amounts of water in an open or straw cup with meals are appropriate, roughly 4 to 8 ounces a day. After twelve months, water can be offered freely.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Juice for babies and toddlers",
+    "content": "Fruit juice is not recommended at all before twelve months, as it adds sugar and displaces breast milk or formula without offering anything whole fruit does not provide better. From one to three years, the limit is 4 ounces a day of 100 percent juice; from four to six years, 4 to 6 ounces. Juice is linked to tooth decay and to poor weight gain when it replaces more nutritious foods. Whole fruit is preferable at every age.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Fruits and vegetables for babies",
+    "content": "Pureed or soft-cooked fruits and vegetables are appropriate from around six months alongside iron-rich foods. Introducing single-ingredient foods and waiting three to five days before adding another makes it easier to identify a reaction. There is no evidence that offering vegetables before fruit prevents a sweet preference. Texture should progress from smooth purees to mashed, then soft lumps and finger foods, in step with the baby's developing skills.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Eggs for babies",
+    "content": "Well-cooked egg can be introduced from around six months, once a few first foods are established, and early introduction is now encouraged rather than delayed because it lowers the chance of egg allergy. The whole egg, white included, should be cooked firm to avoid Salmonella. Offer it at home, earlier in the day, so any reaction can be seen and acted on.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Fish for babies",
+    "content": "Fish can be introduced from around six months and is a valuable source of protein, omega-3 fats, and iodine. Choose low-mercury fish such as salmon, tilapia, cod, canned light tuna, or shrimp, and serve one to two child-size portions a week, where a portion is about 1 ounce for ages one to three. Avoid the high-mercury fish, shark, swordfish, king mackerel, tilefish, and bigeye tuna. Remove all bones and serve in a texture the child can manage.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Rice cereal and arsenic for babies",
+    "content": "Infant rice cereal has long been a first food, but rice takes up more inorganic arsenic from soil than other grains, and the FDA advises varying an infant's grains rather than relying on rice alone. Oat, barley, multigrain, and wheat cereals are equally good vehicles for iron fortification. Rice cereal does not need to be avoided; it simply should not be the only cereal offered. Rice drinks are not suitable as a milk substitute for young children.",
+    "source": "FDA"
+  },
+  {
+    "topic": "Yogurt and cheese for babies",
+    "content": "Plain whole-milk yogurt and pasteurized cheese can be offered from around six months, even though cow's milk as a drink is not suitable until twelve months, because the fermentation and processing make the proteins easier to digest and the volume consumed is small. Choose plain, full-fat, unsweetened yogurt and add fruit puree for flavour. Cheese should be pasteurized and cut or grated to avoid a choking hazard.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Meat for babies",
+    "content": "Meat is one of the best early complementary foods because the iron and zinc in it are absorbed far more readily than from plant sources, and both are the nutrients most likely to fall short from six months. It can be offered pureed, finely minced, or as a soft strip for a baby doing finger feeding. Cook it thoroughly, remove bones and gristle, and avoid processed meats such as hot dogs and deli meat, which are high in salt and a choking risk.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Food textures by age for babies",
+    "content": "Texture should advance steadily, not stay smooth. From about six months, smooth purees and soft mashed food; from seven to nine months, lumpier mash and soft finger foods the baby can grasp; from nine to twelve months, chopped soft foods and more self-feeding; after twelve months, most family foods cut small. Delaying lumpy textures past about nine to ten months is associated with later feeding difficulties and food refusal.",
+    "source": "AAP"
+  },
+  {
+    "topic": "Iron after childbirth",
+    "content": "Blood loss at delivery, particularly after a caesarean or a postpartum haemorrhage, can leave iron stores depleted, and postpartum anaemia contributes to fatigue and has been linked to postpartum depression. Iron-rich foods such as red meat, poultry, fish, legumes, and fortified cereals help, eaten with a vitamin C source to aid absorption. Many clinicians advise continuing a prenatal vitamin for several months. Persistent exhaustion, breathlessness, or palpitations should be reported, as they may indicate anaemia requiring treatment.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Constipation after birth",
+    "content": "Constipation is common in the first weeks after birth, caused by a combination of hormones, pelvic floor soreness, iron supplements, pain medication, and dehydration, and can be made worse by fear of straining after stitches or haemorrhoids. Fluids, fiber from whole grains, fruit, and legumes, and gentle movement all help. Stool softeners are frequently prescribed after delivery and are considered compatible with breastfeeding. Ongoing difficulty should be raised with a clinician rather than endured.",
+    "source": "ACOG"
+  },
+  {
+    "topic": "Balanced meals for general adult nutrition",
+    "content": "A practical guide for a balanced meal is to fill half the plate with fruit and vegetables, roughly a quarter with protein foods such as legumes, fish, poultry, eggs, or lean meat, and roughly a quarter with grains, preferably whole grains, with dairy or a fortified alternative alongside. Variety across the week matters more than perfection at any one meal. Water is the recommended default drink.",
+    "source": "USDA"
+  },
+  {
+    "topic": "Water intake for general adults",
+    "content": "General adult fluid guidance is roughly 11.5 cups (2.7 litres) a day for women and 15.5 cups (3.7 litres) a day for men from all sources, including the water in food, which typically supplies about a fifth of the total. Individual needs vary considerably with body size, activity, climate, and health conditions. Thirst is a reasonable guide for most healthy adults, and pale straw-coloured urine is a practical sign of adequate hydration.",
+    "source": "NIH"
   }
 ]

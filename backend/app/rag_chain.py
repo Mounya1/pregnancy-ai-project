@@ -202,7 +202,12 @@ def constraints_note(profile: UserProfile) -> str:
 
 
 def _build_context(query: str, extra_query_terms: str = ""):
-    docs = retrieve(f"{query} {extra_query_terms}".strip(), k=3)
+    # k=5, not 3. The knowledge base now carries separate entries per life
+    # stage, so a single question about iron legitimately matches pregnancy,
+    # breastfeeding, postpartum, and general guidance at once - with only
+    # three chunks the one for the asker's own stage could be crowded out,
+    # and the model would answer "the context does not cover this stage".
+    docs = retrieve(f"{query} {extra_query_terms}".strip(), k=5)
     context_text = "\n\n".join(f"[Source: {d.metadata['source']}] {d.page_content}" for d in docs)
     return context_text
 
