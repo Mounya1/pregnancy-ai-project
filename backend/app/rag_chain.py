@@ -16,10 +16,11 @@ Flow:
 """
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from openai import OpenAI
 
 from app.config import settings
-from app.knowledge_base import retrieve
+from app.knowledge_base import load_vector_store, retrieve
 from app.high_risk_list import check_pregnancy_high_risk, check_baby_high_risk
 from app.schemas import FoodSafetyResponse, SafetyVerdict, Target, UserProfile, LifeStage
 
@@ -33,8 +34,14 @@ context does not cover the food for the given life stage, set verdict to
 "Unknown - Ask Your Doctor" and say so honestly.
 
 You will be told the TARGET of the verdict: "mother" (is this food safe for the user to eat,
-given their stated life stage) or "baby" (is this food safe to feed directly to a
-baby of the given age). Answer only for the stated target.
+given their stated life stage) or "baby". When the target is "baby", the TARGET DETAIL line in
+the user prompt says which sense is meant, and they are not the same question:
+- a baby already born and eating solids - is this food safe to feed directly to a baby of
+  that age, covering choking, allergens, salt, sugar, and readiness;
+- an unborn baby - the baby eats nothing, so answer how the MOTHER eating this food affects
+  the pregnancy and the baby's development, covering placental transfer, infection risk to
+  the pregnancy, and effects on growth.
+Answer only for the stated target, in the sense TARGET DETAIL gives.
 
 LIFE STAGE RULE - this decides whether the answer is correct at all:
 The user prompt always states a LIFE STAGE. Your verdict, explanation, risks, and serving
@@ -308,14 +315,75 @@ def analyze_for_mother(food_query: str, profile: UserProfile) -> FoodSafetyRespo
     return _apply_allergy_override(result, food_query, profile.allergies)
 
 
+def _analyze_for_unborn(food_query: str, profile: UserProfile) -> FoodSafetyResponse:
+    """How the mother eating this affects the developing baby.
+
+    Pregnancy carries no baby_age_months, so the direct-feeding path below never
+    fired and pregnant users only ever saw one card. The fetal risk was folded
+    into the mother's explanation, which buries the part people most want to
+    read and leaves them inferring that "bad for me" means "bad for the baby" -
+    not reliably true in either direction. A mother's peanut allergy says
+    nothing about the baby's development; high-mercury fish is the reverse,
+    harmless to her and the reason the guidance exists.
+    """
+    week = profile.pregnancy_week
+    note = (
+        "TARGET DETAIL: The baby is unborn"
+        + (f", {week} weeks gestation." if week else " (week not specified).")
+        + " The baby eats nothing directly, so answer how the MOTHER EATING this food"
+        " affects the pregnancy and the baby's development."
+    )
+    if profile.health_conditions:
+        note += (
+            f"\nMEDICAL CONDITIONS: {', '.join(profile.health_conditions)}. "
+            "Say how these change the risk to the baby."
+        )
+
+    context_text = _build_context(food_query, "pregnancy fetal development placenta")
+    result = _call_llm(food_query, Target.BABY, context_text, note)
+
+    override = check_pregnancy_high_risk(food_query)
+    if override:
+        verdict, reason, sources = override
+        result.verdict = verdict
+        result.explanation = reason
+        result.sources = sources
+        result.is_high_risk_override = True
+
+    # A maternal allergy reaches the baby through the mother, so this card must
+    # not read "Safe" while the mother's card reads "Avoid" for the same food.
+    allergen = find_allergy_conflict(food_query, profile.allergies)
+    if allergen is not None:
+        result.verdict = SafetyVerdict.AVOID
+        result.explanation = (
+            f"You are allergic to {allergen}, and a reaction in pregnancy is itself a "
+            f"risk to the baby, so avoid it. {result.explanation}"
+        )
+        risk = (
+            f"A severe allergic reaction to {allergen} can drop your blood pressure and "
+            "reduce oxygen reaching the baby."
+        )
+        if risk not in result.risks:
+            result.risks.insert(0, risk)
+        result.recommended_serving = None
+        result.is_high_risk_override = True
+
+    return result
+
+
 def analyze_for_baby(food_query: str, profile: UserProfile) -> FoodSafetyResponse | None:
-    """Only produces a result if the food is something a baby would actually eat directly."""
+    """The second card: the unborn baby in pregnancy, or a baby eating solids."""
+    if profile.life_stage == LifeStage.PREGNANCY:
+        return _analyze_for_unborn(food_query, profile)
+
     if profile.baby_age_months is None:
         return None
+    # Only for direct feeding. An unborn baby is the case where alcohol and
+    # caffeine matter most, which is why this filter sits after that branch.
     if any(kw in food_query.lower() for kw in BABY_FEEDING_IRRELEVANT_KEYWORDS):
         return None
 
-    note = f"LIFE STAGE: Baby is {profile.baby_age_months} months old and eating solids."
+    note = f"TARGET DETAIL: Baby is {profile.baby_age_months} months old and eating solids."
     if profile.allergies:
         # A parent's allergies matter for the baby too: family history raises
         # the baby's risk, and it is the parent who has to handle a reaction.
@@ -347,9 +415,19 @@ def analyze_food(food_query: str, profile: UserProfile | None = None):
     Kept as the main entrypoint routers call.
     """
     profile = profile or UserProfile()
-    mother_result = analyze_for_mother(food_query, profile)
-    baby_result = analyze_for_baby(food_query, profile)
-    return mother_result, baby_result
+
+    # Loaded before the threads start, not inside them. Both would otherwise
+    # race to build the index on the first request of a new revision and one
+    # would pay for a set of embeddings nobody reads.
+    load_vector_store()
+
+    # The two verdicts are independent LLM calls, and pregnancy now always
+    # produces both. Run sequentially that doubled the wait for an answer on
+    # the most common life stage; run together it costs what one call did.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        mother = pool.submit(analyze_for_mother, food_query, profile)
+        baby = pool.submit(analyze_for_baby, food_query, profile)
+        return mother.result(), baby.result()
 
 
 def generate_followups(food_query: str, profile: UserProfile | None = None) -> list[str]:
