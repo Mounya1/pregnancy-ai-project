@@ -1,20 +1,43 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Raw brand ramp. These are the only hard-coded hues in the app; everything
 /// else is read from [AppPalette] so the same widget renders correctly in
 /// light and dark mode. Use these directly only when a colour must stay
 /// vivid regardless of brightness (e.g. the hero gradient).
+/// The Bloom ramp, converted from the design system's oklch tokens to sRGB.
+///
+/// Bloom states colour in oklch, which Flutter has no constructor for, so each
+/// value below is the sRGB result of one token and the oklch triple it came
+/// from is kept in the comment. Change a token by re-converting from the
+/// oklch, not by nudging the hex - the ramp's even steps are a property of
+/// the oklch lightness scale and hand-editing hex is what loses them.
 class Brand {
   const Brand._();
 
-  static const violet = Color(0xFF7B6FE0);
-  static const violetDeep = Color(0xFF534AB7);
-  static const violetLift = Color(0xFFA79BFF);
-  static const indigo = Color(0xFF5C63D8);
-  static const blossom = Color(0xFFF08FB4);
-  static const teal = Color(0xFF35B0A7);
+  static const violet = Color(0xFF7D4EB7); // oklch(0.527 0.16 301.6) - primary
+  static const violetDeep = Color(0xFF603493); // oklch(0.430 0.15 301.6)
+  static const violetLift = Color(0xFFB582EE); // oklch(0.700 0.16 304.6) - dark primary
+  static const coral = Color(0xFFFF6095); // oklch(0.711 0.20 3.4) - accent
+  static const mint = Color(0xFF27D4A5); // oklch(0.776 0.149 168.6)
+  static const amber = Color(0xFFFCB8A0); // oklch(0.840 0.086 40.5)
+  static const cream = Color(0xFFFBF8FC); // oklch(0.983 0.006 316.8)
+  static const ink = Color(0xFF1E1C26); // oklch(0.234 0.019 293.4)
+
+  // Kept for the two post-birth flavours, which rotate Bloom's brand hue
+  // rather than introducing a second ramp - see _FlavorColors.
+  static const blossom = Color(0xFFAA3A78); // oklch(0.527 0.16 350)
+  static const sky = Color(0xFF006FC0); // oklch(0.527 0.16 245)
+
+  /// Category tints, used for icons and chips that sit on a light surface.
+  ///
+  /// These are Bloom's mint and a blue rotated from its brand, dropped to a
+  /// lightness that stays legible as a small glyph. Bloom's own mint sits at
+  /// L 0.776 for use as a fill, which is too light to read as a 17px icon.
+  static const teal = Color(0xFF00906D); // oklch(0.580 0.12 168.6)
+  static const indigo = Color(0xFF3C64C6); // oklch(0.527 0.16 265)
 }
 
 /// Which brand family the app is wearing.
@@ -53,88 +76,94 @@ class _FlavorColors {
 
   static _FlavorColors light(BrandFlavor flavor) {
     switch (flavor) {
+      // Bloom's own tokens. The other two flavours below are this ramp with
+      // the hue rotated, so a post-birth palette keeps Bloom's lightness
+      // steps and only changes which colour the app is wearing.
       case BrandFlavor.violet:
         return const _FlavorColors(
-          brand: Brand.violet,
-          strong: Brand.violetDeep,
-          soft: Color(0xFF5A50C0),
-          surface: Color(0xFFEFEDFE),
-          accent: Brand.blossom,
-          scaffold: Color(0xFFF7F6FD),
-          surfaceAlt: Color(0xFFF1EFFB),
-          surfaceRaised: Colors.white,
-          border: Color(0xFFE7E3F5),
-          borderStrong: Color(0xFFD3CDEB),
+          brand: Brand.violet, // oklch(0.527 0.16 301.6)
+          strong: Brand.violetDeep, // oklch(0.430 0.15 301.6)
+          soft: Color(0xFF6B40A0), // oklch(0.470 0.15 301.6)
+          surface: Color(0xFFF3EEF7), // oklch(0.955 0.014 310.6) - secondary
+          accent: Brand.coral, // oklch(0.711 0.20 3.4)
+          scaffold: Brand.cream, // oklch(0.983 0.006 316.8)
+          surfaceAlt: Color(0xFFF6F3F9), // oklch(0.968 0.008 309.6) - muted
+          surfaceRaised: Colors.white, // oklch(1 0 0) - card
+          border: Color(0xFFE2E0E5), // oklch(0.910 0.006 301.6)
+          borderStrong: Color(0xFFD0CED5), // oklch(0.855 0.010 300)
         );
       case BrandFlavor.blossom:
         return const _FlavorColors(
-          brand: Color(0xFFE86A93),
-          strong: Color(0xFFBE3F6C),
-          soft: Color(0xFFB93E68),
-          surface: Color(0xFFFDECF1),
-          accent: Color(0xFFF5A26B),
-          scaffold: Color(0xFFFEF7F8),
-          surfaceAlt: Color(0xFFFBEDF1),
+          brand: Brand.blossom, // oklch(0.527 0.16 350)
+          strong: Color(0xFF871F5B), // oklch(0.430 0.15 350)
+          soft: Color(0xFF942D66), // oklch(0.470 0.15 350)
+          surface: Color(0xFFF9ECF0), // oklch(0.955 0.014 359)
+          accent: Brand.teal, // mint, so the accent is not a second pink
+          scaffold: Color(0xFFFDF8F9), // oklch(0.983 0.006 365)
+          surfaceAlt: Color(0xFFF9F2F4), // oklch(0.968 0.008 358)
           surfaceRaised: Colors.white,
-          border: Color(0xFFF6DDE4),
-          borderStrong: Color(0xFFEDC2CF),
+          border: Color(0xFFE5E0E2), // oklch(0.910 0.006 350)
+          borderStrong: Color(0xFFD4CED0), // oklch(0.855 0.010 350)
         );
       case BrandFlavor.sky:
         return const _FlavorColors(
-          brand: Color(0xFF3D8FD6),
-          strong: Color(0xFF255F9B),
-          soft: Color(0xFF23628F),
-          surface: Color(0xFFE6F1FB),
-          accent: Color(0xFF34B3AC),
-          scaffold: Color(0xFFF5FAFE),
-          surfaceAlt: Color(0xFFEBF3FA),
+          brand: Brand.sky, // oklch(0.527 0.16 245)
+          strong: Color(0xFF00529B), // oklch(0.430 0.15 245)
+          soft: Color(0xFF005EA8), // oklch(0.470 0.15 245)
+          surface: Color(0xFFEAF1FA), // oklch(0.955 0.014 254)
+          accent: Brand.coral, // oklch(0.711 0.20 3.4)
+          scaffold: Color(0xFFF7FAFE), // oklch(0.983 0.006 260)
+          surfaceAlt: Color(0xFFF1F5FA), // oklch(0.968 0.008 253)
           surfaceRaised: Colors.white,
-          border: Color(0xFFD9E7F3),
-          borderStrong: Color(0xFFBBD3E8),
+          border: Color(0xFFDEE2E5), // oklch(0.910 0.006 245)
+          borderStrong: Color(0xFFCCD1D5), // oklch(0.855 0.010 245)
         );
     }
   }
 
   static _FlavorColors dark(BrandFlavor flavor) {
     switch (flavor) {
+      // Bloom's .dark block. Its dark ground is oklch(0.234 0.019 293.4) -
+      // the same value its light mode uses for text, which is what keeps the
+      // two modes reading as one system rather than two palettes.
       case BrandFlavor.violet:
         return const _FlavorColors(
-          brand: Brand.violetLift,
-          strong: Brand.violet,
-          soft: Color(0xFFC7BEFF),
-          surface: Color(0xFF272341),
-          accent: Color(0xFFE887AE),
-          scaffold: Color(0xFF0E0D16),
-          surfaceAlt: Color(0xFF181724),
-          surfaceRaised: Color(0xFF201E30),
-          border: Color(0xFF2E2B41),
-          borderStrong: Color(0xFF3D3956),
+          brand: Brand.violetLift, // oklch(0.700 0.16 304.6)
+          strong: Color(0xFF955DCD), // oklch(0.590 0.17 304.6)
+          soft: Color(0xFFD1B6F4), // oklch(0.820 0.09 304.6)
+          surface: Color(0xFF41384F), // oklch(0.360 0.04 301.6) - brand-soft
+          accent: Brand.coral, // unchanged across modes in Bloom
+          scaffold: Brand.ink, // oklch(0.234 0.019 293.4)
+          surfaceAlt: Color(0xFF2C2A35), // oklch(0.290 0.020 293.6) - card
+          surfaceRaised: Color(0xFF393546), // oklch(0.340 0.030 295.6) - muted
+          border: Color(0xFF494554), // oklch(0.400 0.025 295.6)
+          borderStrong: Color(0xFF595567), // oklch(0.460 0.030 295)
         );
       case BrandFlavor.blossom:
         return const _FlavorColors(
-          brand: Color(0xFFF593B2),
-          strong: Color(0xFFE86A93),
-          soft: Color(0xFFFCC3D5),
-          surface: Color(0xFF3A2430),
-          accent: Color(0xFFF7B98A),
-          scaffold: Color(0xFF161013),
-          surfaceAlt: Color(0xFF231A1E),
-          surfaceRaised: Color(0xFF2C2126),
-          border: Color(0xFF3D2C34),
-          borderStrong: Color(0xFF523A45),
+          brand: Color(0xFFE76FA7), // oklch(0.700 0.16 353)
+          strong: Color(0xFFC54986), // oklch(0.590 0.17 353)
+          soft: Color(0xFFF3ACC9), // oklch(0.820 0.09 353)
+          surface: Color(0xFF4D3440), // oklch(0.360 0.04 350)
+          accent: Color(0xFF5EDFB5), // mint, oklch(0.820 0.13 168.6)
+          scaffold: Color(0xFF241A20), // oklch(0.234 0.019 342)
+          surfaceAlt: Color(0xFF33282E), // oklch(0.290 0.020 342)
+          surfaceRaised: Color(0xFF43323C), // oklch(0.340 0.030 344)
+          border: Color(0xFF52424B), // oklch(0.400 0.025 344)
+          borderStrong: Color(0xFF62525B), // oklch(0.460 0.030 344)
         );
       case BrandFlavor.sky:
         return const _FlavorColors(
-          brand: Color(0xFF74B6EC),
-          strong: Color(0xFF3D8FD6),
-          soft: Color(0xFFB3D8F5),
-          surface: Color(0xFF1E3049),
-          accent: Color(0xFF5ECFC8),
-          scaffold: Color(0xFF0B1119),
-          surfaceAlt: Color(0xFF141C26),
-          surfaceRaised: Color(0xFF1B2531),
-          border: Color(0xFF25313F),
-          borderStrong: Color(0xFF334455),
+          brand: Color(0xFF3BA4FC), // oklch(0.700 0.16 248)
+          strong: Color(0xFF0081DC), // oklch(0.590 0.17 248)
+          soft: Color(0xFF95CAFC), // oklch(0.820 0.09 248)
+          surface: Color(0xFF2B3F51), // oklch(0.360 0.04 245)
+          accent: Brand.coral,
+          scaffold: Color(0xFF151F26), // oklch(0.234 0.019 237)
+          surfaceAlt: Color(0xFF222D34), // oklch(0.290 0.020 237)
+          surfaceRaised: Color(0xFF293A46), // oklch(0.340 0.030 239)
+          border: Color(0xFF3C4A54), // oklch(0.400 0.025 239)
+          borderStrong: Color(0xFF4C5A64), // oklch(0.460 0.030 239)
         );
     }
   }
@@ -305,7 +334,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       brandStrong: f.strong,
       brandSoft: f.soft,
       brandSurface: f.surface,
-      onBrand: Colors.white,
+      onBrand: const Color(0xFFFCFBFD), // oklch(0.990 0.002 320) - primary-fg
       accent: f.accent,
       scaffold: f.scaffold,
       surface: Colors.white,
@@ -313,18 +342,27 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surfaceRaised: Colors.white,
       border: f.border,
       borderStrong: f.borderStrong,
-      textPrimary: const Color(0xFF171526),
-      textSecondary: const Color(0xFF5C5872),
-      textMuted: const Color(0xFF8E8AA3),
-      safe: const Color(0xFF2F6B22),
-      safeSurface: const Color(0xFFE8F3E0),
-      limit: const Color(0xFF8A5208),
-      limitSurface: const Color(0xFFFBEEDA),
-      avoid: const Color(0xFF8C2020),
-      avoidSurface: const Color(0xFFFBE9E9),
-      neutral: const Color(0xFF5C5872),
-      neutralSurface: const Color(0xFFEDEBF4),
-      shadow: const Color(0xFF2A2545),
+      textPrimary: Brand.ink, // oklch(0.234 0.019 293.4) - foreground
+      textSecondary: const Color(0xFF64616F), // oklch(0.500 0.022 295) - muted-fg
+      // L 0.54, not the 0.640 that sat halfway between Bloom's foreground and
+      // its muted-foreground. This is the colour of 11px labels and field
+      // hints, and at 0.640 it read 3.2:1 on the cream ground - short of AA
+      // for text that size. Bloom does not define a third text tier, so the
+      // contrast floor decides it rather than a token.
+      textMuted: const Color(0xFF6F6D77), // oklch(0.540 0.016 295)
+      // The three verdicts are Bloom's mint, amber and destructive, each
+      // dropped in lightness until it passes contrast as body text on its own
+      // tint. Bloom states them at fill lightness - mint at L 0.776, amber at
+      // L 0.840 - which is unreadable as the text of a verdict chip.
+      safe: const Color(0xFF007251), // oklch(0.480 0.12 168.6)
+      safeSurface: const Color(0xFFE7FBF3), // oklch(0.971 0.024 170.2) - mint-soft
+      limit: const Color(0xFF9C5313), // oklch(0.520 0.12 55)
+      limitSurface: const Color(0xFFFFF5ED), // oklch(0.975 0.015 58.2) - amber-soft
+      avoid: const Color(0xFFC21725), // oklch(0.520 0.20 25)
+      avoidSurface: const Color(0xFFFFEDEC), // oklch(0.960 0.020 20)
+      neutral: const Color(0xFF64616F), // oklch(0.500 0.022 295)
+      neutralSurface: const Color(0xFFF1EFF5), // oklch(0.955 0.008 300)
+      shadow: const Color(0xFF2F2A40), // oklch(0.300 0.040 295)
     );
   }
 
@@ -336,7 +374,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       brandStrong: f.strong,
       brandSoft: f.soft,
       brandSurface: f.surface,
-      onBrand: const Color(0xFF14121F),
+      onBrand: Brand.ink, // Bloom's dark primary-foreground is its own ground
       accent: f.accent,
       scaffold: f.scaffold,
       surface: f.surfaceAlt,
@@ -344,17 +382,20 @@ class AppPalette extends ThemeExtension<AppPalette> {
       surfaceRaised: f.surfaceRaised,
       border: f.border,
       borderStrong: f.borderStrong,
-      textPrimary: const Color(0xFFF3F2F8),
-      textSecondary: const Color(0xFFAEAAC2),
-      textMuted: const Color(0xFF807C97),
-      safe: const Color(0xFF93D98C),
-      safeSurface: const Color(0xFF1C2C1B),
-      limit: const Color(0xFFECB768),
-      limitSurface: const Color(0xFF322614),
-      avoid: const Color(0xFFF08C8C),
-      avoidSurface: const Color(0xFF33191B),
-      neutral: const Color(0xFFAEAAC2),
-      neutralSurface: const Color(0xFF262338),
+      textPrimary: Brand.cream, // oklch(0.983 0.006 316.8) - modes swap these
+      textSecondary: const Color(0xFFA5A2B0), // oklch(0.720 0.020 295)
+      textMuted: const Color(0xFF8A8793), // oklch(0.630 0.018 295) - see light
+
+      // Same three hues as light mode, lifted rather than dropped: on a dark
+      // ground the tint is the deep colour and the text is the bright one.
+      safe: const Color(0xFF5EDFB5), // oklch(0.820 0.13 168.6)
+      safeSurface: const Color(0xFF204638), // oklch(0.360 0.05 168) - mint-soft
+      limit: const Color(0xFFFFC298), // oklch(0.860 0.09 55)
+      limitSurface: const Color(0xFF633D2C), // oklch(0.400 0.06 45) - amber-soft
+      avoid: const Color(0xFFFF9E9B), // oklch(0.800 0.12 22) - AA on its tint
+      avoidSurface: const Color(0xFF683738), // oklch(0.400 0.07 20)
+      neutral: const Color(0xFFA5A2B0), // oklch(0.720 0.020 295)
+      neutralSurface: const Color(0xFF393546), // oklch(0.340 0.030 295)
       shadow: const Color(0xFF000000),
     );
   }
@@ -475,37 +516,64 @@ class AppTheme {
   static ThemeData _build(AppPalette p, Brightness brightness, BrandFlavor flavor) {
     final base = ThemeData(brightness: brightness);
 
+    // Bloom pairs a display serif with a body sans and applies the serif to
+    // headings only. Flutter has no h1-h4, so the split lands on the largest
+    // title and above: headlines and titleLarge are headings, while
+    // titleMedium and below are UI labels and belong to the body face.
+    //
+    // Fraunces carries the whole change in character. Dropping it and keeping
+    // only the colours would leave this looking like the old theme recoloured.
+    final display = GoogleFonts.fraunces();
+    final body = GoogleFonts.dmSans();
+
     final textTheme = base.textTheme
-        .apply(bodyColor: p.textPrimary, displayColor: p.textPrimary)
+        .apply(
+          bodyColor: p.textPrimary,
+          displayColor: p.textPrimary,
+          fontFamily: body.fontFamily,
+        )
         .copyWith(
-          headlineSmall: TextStyle(
+          displayLarge: display.copyWith(
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.8,
+            color: p.textPrimary,
+          ),
+          headlineMedium: display.copyWith(
+            fontSize: 26,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+            color: p.textPrimary,
+          ),
+          headlineSmall: display.copyWith(
             fontSize: 22,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.4,
             color: p.textPrimary,
           ),
-          titleLarge: TextStyle(
+          titleLarge: display.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.2,
             color: p.textPrimary,
           ),
-          titleMedium: TextStyle(
+          titleMedium: body.copyWith(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             color: p.textPrimary,
           ),
-          titleSmall: TextStyle(
+          titleSmall: body.copyWith(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: p.textPrimary,
           ),
-          bodyLarge: TextStyle(fontSize: 15, height: 1.5, color: p.textPrimary),
-          bodyMedium: TextStyle(fontSize: 13.5, height: 1.5, color: p.textPrimary),
-          bodySmall: TextStyle(fontSize: 12, height: 1.45, color: p.textSecondary),
-          labelLarge: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary),
-          labelSmall: TextStyle(fontSize: 11, color: p.textMuted),
+          bodyLarge: body.copyWith(fontSize: 15, height: 1.5, color: p.textPrimary),
+          bodyMedium: body.copyWith(fontSize: 13.5, height: 1.5, color: p.textPrimary),
+          bodySmall: body.copyWith(fontSize: 12, height: 1.45, color: p.textSecondary),
+          labelLarge: body.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
+          labelMedium:
+              body.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: p.textSecondary),
+          labelSmall: body.copyWith(fontSize: 11, color: p.textMuted),
         );
 
     return ThemeData(

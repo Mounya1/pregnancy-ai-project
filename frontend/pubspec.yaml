@@ -27,6 +27,7 @@ dependencies:
   # Hands "baby store near me" to the device's maps app, which already knows
   # where you are - so the app never needs a location permission of its own.
   url_launcher: ^6.3.0
+  google_fonts: ^8.2.1
 
 dev_dependencies:
   flutter_test:
