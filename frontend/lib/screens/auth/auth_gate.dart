@@ -57,14 +57,40 @@ class _AuthSplash extends StatelessWidget {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(gradient: p.heroGradient),
-        child: const Stack(
+        child: Stack(
           children: [
-            Positioned.fill(child: BlobDecoration(color: Colors.white, seed: 5)),
+            const Positioned.fill(
+              child: BlobDecoration(color: Colors.white, seed: 5),
+            ),
             Center(
-              child: MotherIllustration(
-                color: Colors.white,
-                accent: Color(0xFFEDE7FF),
-                size: 150,
+              // The mark is purple on transparent, so it needs a light ground
+              // to sit on - dropped straight onto the brand gradient it would
+              // be violet on violet and effectively invisible.
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  width: 108,
+                  height: 108,
+                  // The splash is the first frame; a decode failure here would
+                  // otherwise be a black box on the way into the app.
+                  errorBuilder: (_, __, ___) => const MotherIllustration(
+                    color: Brand.violet,
+                    accent: Color(0xFFEDE7FF),
+                    size: 108,
+                  ),
+                ),
               ),
             ),
           ],

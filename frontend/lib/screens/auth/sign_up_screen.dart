@@ -87,6 +87,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ? 'One account, so you can sign in and pick your plans back up on any device.'
           : 'So your plans, reminders, and records are yours alone on this phone.',
       children: [
+        // Sign-up is the front door for anyone arriving without an account,
+        // so the hero goes here rather than on the unlock screen, where it
+        // would push the password field below the fold on a short phone.
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: AspectRatio(
+            aspectRatio: 900 / 756,
+            child: Image.asset(
+              'assets/images/hero_pregnancy.jpg',
+              fit: BoxFit.cover,
+              // A missing asset here is a blank band above the form rather
+              // than a broken screen, so the form still works without it.
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
         AuthField(
           controller: _name,
           label: 'Your name',
